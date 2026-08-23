@@ -1,3 +1,10 @@
+/* ============================================================
+   HorizonParkSystem - Park Management System
+   Author: Mohammad Shaqboua
+   GITHUB: https://github.com/Mohammadshaqboua/HorizonParkSystem.git
+   ============================================================ 
+*/
+
 using HorizonParkSystem.Enums;
 
 namespace HorizonParkSystem.Models;
@@ -13,7 +20,7 @@ public class Ride
     public int               MaxCapacity               { get; set; }
     public int               CurrentOccupancy          { get; set; }
     public RideStatus        Status                    { get; set; }
-    public List<Reservation> Reservations              { get; set; } = new List<Reservation>();
+    public Reservation[]     Reservations              { get; set; } = new Reservation[0];
 
     public bool IsOpen()
     {

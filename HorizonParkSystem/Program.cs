@@ -1,4 +1,11 @@
-﻿using HorizonParkSystem.Services;
+﻿/* ============================================================
+   HorizonParkSystem - Park Management System
+   Author: Mohammad Shaqboua
+   GITHUB: https://github.com/Mohammadshaqboua/HorizonParkSystem.git
+   ============================================================ 
+*/
+
+using HorizonParkSystem.Services;
 using HorizonParkSystem.Models;
 using HorizonParkSystem.Enums;
 
@@ -196,7 +203,7 @@ while (true)
                 _ => TicketType.Regular
             };
 
-            List<string> allowedRideIds = new List<string>();
+            string[] allowedRideIds = new string[0];
 
             if (type != TicketType.VIP)
             {
@@ -207,10 +214,15 @@ while (true)
 
                 if (!string.IsNullOrWhiteSpace(ridesInput))
                 {
-                    allowedRideIds = ridesInput
-                        .Split(',')
-                        .Select(r => r.Trim())
-                        .ToList();
+                    string[] rawParts = ridesInput.Split(',');
+
+                    foreach (var part in rawParts)
+                    {
+                        string trimmed = part.Trim();
+
+                        Array.Resize(ref allowedRideIds, allowedRideIds.Length + 1);
+                        allowedRideIds[allowedRideIds.Length - 1] = trimmed;
+                    }
                 }
             }
 

@@ -1,3 +1,10 @@
+/* ============================================================
+   HorizonParkSystem - Park Management System
+   Author: Mohammad Shaqboua
+   GITHUB: https://github.com/Mohammadshaqboua/HorizonParkSystem.git
+   ============================================================ 
+*/
+
 using HorizonParkSystem.Enums;
 
 namespace HorizonParkSystem.Models;
@@ -5,7 +12,7 @@ namespace HorizonParkSystem.Models;
 public class Assignment
 {
     public string   RideOrFacilityId  { get; set; }
-    public Shift    Shift { get; set; } 
+    public Shift    Shift             { get; set; } 
 
     public DateTime AssignedAt        { get; set; }
 }

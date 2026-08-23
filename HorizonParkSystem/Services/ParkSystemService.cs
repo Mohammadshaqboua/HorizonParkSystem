@@ -1,3 +1,10 @@
+/* ============================================================
+   HorizonParkSystem - Park Management System
+   Author: Mohammad Shaqboua
+   GITHUB: https://github.com/Mohammadshaqboua/HorizonParkSystem.git
+   ============================================================ 
+*/
+
 using HorizonParkSystem.Models;
 using HorizonParkSystem.Enums;
 
@@ -5,21 +12,26 @@ namespace HorizonParkSystem.Services;
 
 public class ParkSystemService
 {
-    private List<Visitor> _visitors = new List<Visitor>();
-    private List<Ride> _rides = new List<Ride>();
-    private List<Employee> _employees = new List<Employee>();
-    private List<Reservation> _reservations = new List<Reservation>();
-    private List<Ticket> _tickets = new List<Ticket>();
-    private readonly List<string> _knownFacilities = new List<string>
+    private Visitor[] _visitors = new Visitor[0];
+    private Ride[] _rides = new Ride[0];
+    private Employee[] _employees = new Employee[0];
+    private Reservation[] _reservations = new Reservation[0];
+    private Ticket[] _tickets = new Ticket[0];
+    private readonly string[] _knownFacilities = new string[]
     {
         "Main Gate", "Ticket Booth A", "Ticket Booth B", "First Aid", "Food Court"
     };
 
     private int _ticketCounter = 1;
     private int _reservationCounter = 1;
-    private int _visitorCounter = 1;    
-    private int _rideCounter = 1;        
+    private int _visitorCounter = 1;
+    private int _rideCounter = 1;
     private int _employeeCounter = 1;
+    private static void AddToArray<T>(ref T[] array, T item)
+    {
+        Array.Resize(ref array, array.Length + 1);
+        array[array.Length - 1] = item;
+    }
 
     public (bool Success, string Message) RegisterVisitor(
         string name,
@@ -32,34 +44,58 @@ public class ParkSystemService
             return (false, "Registration failed: Age must be between 0 and 120.");
         }
 
-        if (heightCm  < 50 || heightCm > 200)
+        if (heightCm < 50 || heightCm > 200)
         {
             return (false, "Registration failed: height must be between 50 and 200.");
         }
-        
+
         string visitorId = $"V-{_visitorCounter++}";
-        
+
         Visitor visitor = new Visitor(visitorId, name, age, heightCm, category);
 
-        _visitors.Add(visitor);
+        AddToArray(ref _visitors, visitor);
         return (true, $"Visitor '{name}' registered successfully with ID {visitorId}.");
     }
 
-    public (bool Success, string Message) IssueTicket(string visitorId, TicketType type, List<string> allowedRideIds)
+    public (bool Success, string Message) IssueTicket(string visitorId, TicketType type, string[] allowedRideIds)
     {
-        var visitor = _visitors.FirstOrDefault(v => v.VisitorId == visitorId);
+        Visitor visitor = null;
+        foreach (var v in _visitors)
+        {
+            if (v.VisitorId == visitorId)
+            {
+                visitor = v;
+                break;
+            }
+        }
+
         if (visitor == null)
         {
             return (false, $"Issue ticket failed: Visitor '{visitorId}' not found.");
         }
 
-        allowedRideIds = allowedRideIds ?? new List<string>(); 
+        allowedRideIds = allowedRideIds ?? new string[0];
 
-        var invalidRideIds = allowedRideIds
-            .Where(id => !_rides.Any(r => r.RideId == id))
-            .ToList();
+        string[] invalidRideIds = new string[0];
+        foreach (var id in allowedRideIds)
+        {
+            bool rideExists = false;
+            foreach (var r in _rides)
+            {
+                if (r.RideId == id)
+                {
+                    rideExists = true;
+                    break;
+                }
+            }
 
-        if (invalidRideIds.Any())
+            if (!rideExists)
+            {
+                AddToArray(ref invalidRideIds, id);
+            }
+        }
+
+        if (invalidRideIds.Length > 0)
         {
             return (false, $"Issue ticket failed: The following Ride IDs do not exist: {string.Join(", ", invalidRideIds)}");
         }
@@ -82,7 +118,7 @@ public class ParkSystemService
             AllowedRideIds = allowedRideIds
         };
 
-        _tickets.Add(ticket);
+        AddToArray(ref _tickets, ticket);
         visitor.ActiveTicket = ticket;
 
         return (true, $"Ticket {ticket.TicketId} issued to {visitor.Name}. Price: {price:C}");
@@ -90,7 +126,16 @@ public class ParkSystemService
 
     public (bool Success, string Message) DeactivateTicket(string visitorId)
     {
-        var visitor = _visitors.FirstOrDefault(v => v.VisitorId == visitorId);
+        Visitor visitor = null;
+        foreach (var v in _visitors)
+        {
+            if (v.VisitorId == visitorId)
+            {
+                visitor = v;
+                break;
+            }
+        }
+
         if (visitor == null)
         {
             return (false, $"Deactivate ticket failed: Visitor '{visitorId}' not found.");
@@ -113,7 +158,16 @@ public class ParkSystemService
 
     public (bool Success, string Message) ValidateTicket(string visitorId)
     {
-        var visitor = _visitors.FirstOrDefault(v => v.VisitorId == visitorId);
+        Visitor visitor = null;
+        foreach (var v in _visitors)
+        {
+            if (v.VisitorId == visitorId)
+            {
+                visitor = v;
+                break;
+            }
+        }
+
         if (visitor == null)
         {
             return (false, $"Validation failed: Visitor '{visitorId}' not found.");
@@ -139,13 +193,31 @@ public class ParkSystemService
 
     public (bool Success, string Message) CheckRideAccess(string visitorId, string rideId)
     {
-        var visitor = _visitors.FirstOrDefault(v => v.VisitorId == visitorId);
+        Visitor visitor = null;
+        foreach (var v in _visitors)
+        {
+            if (v.VisitorId == visitorId)
+            {
+                visitor = v;
+                break;
+            }
+        }
+
         if (visitor == null)
         {
             return (false, $"Access check failed: Visitor '{visitorId}' not found.");
         }
 
-        var ride = _rides.FirstOrDefault(r => r.RideId == rideId);
+        Ride ride = null;
+        foreach (var r in _rides)
+        {
+            if (r.RideId == rideId)
+            {
+                ride = r;
+                break;
+            }
+        }
+
         if (ride == null)
         {
             return (false, $"Access check failed: Ride '{rideId}' not found.");
@@ -162,10 +234,22 @@ public class ParkSystemService
             return (false, $"Access denied: Ride '{ride.Name}' is currently {ride.Status}.");
         }
 
-        if (!visitor.ActiveTicket.GrantsAccessToAllRides() &&
-            !visitor.ActiveTicket.AllowedRideIds.Contains(rideId))
+        if (!visitor.ActiveTicket.GrantsAccessToAllRides())
         {
-            return (false, $"Access denied: Ticket does not include access to '{ride.Name}'.");
+            bool allowed = false;
+            foreach (var id in visitor.ActiveTicket.AllowedRideIds)
+            {
+                if (id == rideId)
+                {
+                    allowed = true;
+                    break;
+                }
+            }
+
+            if (!allowed)
+            {
+                return (false, $"Access denied: Ticket does not include access to '{ride.Name}'.");
+            }
         }
 
         var eligibility = ride.CheckEligibility(visitor);
@@ -178,7 +262,7 @@ public class ParkSystemService
         {
             return (false, $"Access denied: Ride '{ride.Name}' is at full capacity.");
         }
-        
+
         ride.CurrentOccupancy++;
 
         return (true, $"Access granted to '{ride.Name}'.");
@@ -186,13 +270,31 @@ public class ParkSystemService
 
     public (bool Success, string Message) CreateReservation(string visitorId, string rideId, string timeSlot)
     {
-        var visitor = _visitors.FirstOrDefault(v => v.VisitorId == visitorId);
+        Visitor visitor = null;
+        foreach (var v in _visitors)
+        {
+            if (v.VisitorId == visitorId)
+            {
+                visitor = v;
+                break;
+            }
+        }
+
         if (visitor == null)
         {
             return (false, $"Reservation failed: Visitor '{visitorId}' not found.");
         }
 
-        var ride = _rides.FirstOrDefault(r => r.RideId == rideId);
+        Ride ride = null;
+        foreach (var r in _rides)
+        {
+            if (r.RideId == rideId)
+            {
+                ride = r;
+                break;
+            }
+        }
+
         if (ride == null)
         {
             return (false, $"Reservation failed: Ride '{rideId}' not found.");
@@ -208,21 +310,34 @@ public class ParkSystemService
             return (false, $"Reservation failed: '{timeSlot}' is not a valid time format (expected HH:mm).");
         }
 
-        bool alreadyReserved = _reservations.Any(r =>
-            r.VisitorId == visitorId &&
-            r.RideId == rideId &&
-            r.TimeSlot == timeSlot &&
-            r.Status == ReservationStatus.Active);
+        bool alreadyReserved = false;
+        foreach (var r in _reservations)
+        {
+            if (r.VisitorId == visitorId &&
+                r.RideId == rideId &&
+                r.TimeSlot == timeSlot &&
+                r.Status == ReservationStatus.Active)
+            {
+                alreadyReserved = true;
+                break;
+            }
+        }
 
         if (alreadyReserved)
         {
             return (false, "Reservation failed: Visitor already has a reservation for this ride and time slot.");
         }
 
-        int reservedCount = _reservations.Count(r =>
-            r.RideId == rideId &&
-            r.TimeSlot == timeSlot &&
-            r.Status == ReservationStatus.Active);
+        int reservedCount = 0;
+        foreach (var r in _reservations)
+        {
+            if (r.RideId == rideId &&
+                r.TimeSlot == timeSlot &&
+                r.Status == ReservationStatus.Active)
+            {
+                reservedCount++;
+            }
+        }
 
         if (reservedCount >= ride.MaxCapacity)
         {
@@ -239,14 +354,23 @@ public class ParkSystemService
             CreatedAt = DateTime.Now
         };
 
-        _reservations.Add(reservation);
+        AddToArray(ref _reservations, reservation);
 
         return (true, $"Reservation {reservation.ReservationId} created for '{ride.Name}' at {timeSlot}.");
     }
 
     public (bool Success, string Message) CancelReservation(string reservationId)
     {
-        var reservation = _reservations.FirstOrDefault(r => r.ReservationId == reservationId);
+        Reservation reservation = null;
+        foreach (var r in _reservations)
+        {
+            if (r.ReservationId == reservationId)
+            {
+                reservation = r;
+                break;
+            }
+        }
+
         if (reservation == null)
         {
             return (false, $"Cancel failed: Reservation '{reservationId}' not found.");
@@ -281,14 +405,23 @@ public class ParkSystemService
 
         ride.RideId = $"RIDE-{_rideCounter++}";
 
-        _rides.Add(ride);
+        AddToArray(ref _rides, ride);
 
         return (true, $"Ride '{ride.Name}' added successfully with ID {ride.RideId}.");
     }
 
     public (bool Success, string Message) UpdateRideStatus(string rideId, RideStatus newStatus)
     {
-        var ride = _rides.FirstOrDefault(r => r.RideId == rideId);
+        Ride ride = null;
+        foreach (var r in _rides)
+        {
+            if (r.RideId == rideId)
+            {
+                ride = r;
+                break;
+            }
+        }
+
         if (ride == null)
         {
             return (false, $"Update ride status failed: Ride '{rideId}' not found.");
@@ -301,14 +434,40 @@ public class ParkSystemService
 
     public (bool Success, string Message) AssignEmployee(string employeeId, string rideOrFacilityId, Shift shift)
     {
-        var employee = _employees.FirstOrDefault(e => e.EmployeeId == employeeId);
+        Employee employee = null;
+        foreach (var e in _employees)
+        {
+            if (e.EmployeeId == employeeId)
+            {
+                employee = e;
+                break;
+            }
+        }
+
         if (employee == null)
         {
             return (false, $"Assignment failed: Employee '{employeeId}' not found.");
         }
 
-        bool isValidRide = _rides.Any(r => r.RideId == rideOrFacilityId);
-        bool isValidFacility = _knownFacilities.Contains(rideOrFacilityId);
+        bool isValidRide = false;
+        foreach (var r in _rides)
+        {
+            if (r.RideId == rideOrFacilityId)
+            {
+                isValidRide = true;
+                break;
+            }
+        }
+
+        bool isValidFacility = false;
+        foreach (var facility in _knownFacilities)
+        {
+            if (facility == rideOrFacilityId)
+            {
+                isValidFacility = true;
+                break;
+            }
+        }
 
         if (!isValidRide && !isValidFacility)
         {
@@ -332,7 +491,16 @@ public class ParkSystemService
 
     public string GetRideOccupancyStatus(string rideId)
     {
-        var ride = _rides.FirstOrDefault(r => r.RideId == rideId);
+        Ride ride = null;
+        foreach (var r in _rides)
+        {
+            if (r.RideId == rideId)
+            {
+                ride = r;
+                break;
+            }
+        }
+
         if (ride == null)
         {
             return $"Ride '{rideId}' not found.";
@@ -340,7 +508,7 @@ public class ParkSystemService
 
         return $"{ride.Name}: {ride.CurrentOccupancy}/{ride.MaxCapacity} | Status: {ride.Status}";
     }
-    
+
     public (bool Success, string Message) RegisterEmployee(string name, Role role)
     {
         string employeeId = $"E-{_employeeCounter++}";
@@ -352,95 +520,140 @@ public class ParkSystemService
             Role = role
         };
 
-        _employees.Add(employee);
+        AddToArray(ref _employees, employee);
 
         return (true, $"Employee '{name}' registered successfully with ID {employeeId}.");
     }
 
-public string GetInfo(EntitySector entitySector, string id)
-{
-    if (entitySector == EntitySector.Visitor)
+    public string GetInfo(EntitySector entitySector, string id)
     {
-        var visitor = _visitors.FirstOrDefault(v => v.VisitorId == id);
-        if (visitor == null)
-            return $"Visitor '{id}' not found.";
+        if (entitySector == EntitySector.Visitor)
+        {
+            Visitor visitor = null;
+            foreach (var v in _visitors)
+            {
+                if (v.VisitorId == id)
+                {
+                    visitor = v;
+                    break;
+                }
+            }
 
-        string ticketInfo = visitor.ActiveTicket == null
-            ? "No active ticket"
-            : $"{visitor.ActiveTicket.TicketId} ({visitor.ActiveTicket.Status})";
+            if (visitor == null)
+                return $"Visitor '{id}' not found.";
 
-        return $"[VISITOR INFO]\n" +
-               $"  ID:       {visitor.VisitorId}\n" +
-               $"  Name:     {visitor.Name}\n" +
-               $"  Age:      {visitor.Age}\n" +
-               $"  Height:   {visitor.HeightCm} cm\n" +
-               $"  Category: {visitor.Category}\n" +
-               $"  Ticket:   {ticketInfo}";
+            string ticketInfo = visitor.ActiveTicket == null
+                ? "No active ticket"
+                : $"{visitor.ActiveTicket.TicketId} ({visitor.ActiveTicket.Status})";
+
+            return $"[VISITOR INFO]\n" +
+                   $"  ID:       {visitor.VisitorId}\n" +
+                   $"  Name:     {visitor.Name}\n" +
+                   $"  Age:      {visitor.Age}\n" +
+                   $"  Height:   {visitor.HeightCm} cm\n" +
+                   $"  Category: {visitor.Category}\n" +
+                   $"  Ticket:   {ticketInfo}";
+        }
+
+        if (entitySector == EntitySector.Ride)
+        {
+            Ride ride = null;
+            foreach (var r in _rides)
+            {
+                if (r.RideId == id)
+                {
+                    ride = r;
+                    break;
+                }
+            }
+
+            if (ride == null)
+                return $"Ride '{id}' not found.";
+
+            return $"[RIDE INFO]\n" +
+                   $"  ID:         {ride.RideId}\n" +
+                   $"  Name:       {ride.Name}\n" +
+                   $"  Type:       {ride.Type}\n" +
+                   $"  Min Age:    {ride.MinAge}\n" +
+                   $"  Min Height: {ride.MinHeightCm} cm\n" +
+                   $"  Occupancy:  {ride.CurrentOccupancy}/{ride.MaxCapacity}\n" +
+                   $"  Status:     {ride.Status}";
+        }
+
+        if (entitySector == EntitySector.Employee)
+        {
+            Employee employee = null;
+            foreach (var e in _employees)
+            {
+                if (e.EmployeeId == id)
+                {
+                    employee = e;
+                    break;
+                }
+            }
+
+            if (employee == null)
+                return $"Employee '{id}' not found.";
+
+            string assignmentInfo = employee.CurrentAssignment == null
+                ? "Not assigned"
+                : $"{employee.CurrentAssignment.RideOrFacilityId} ({employee.CurrentAssignment.Shift})";
+
+            return $"[EMPLOYEE INFO]\n" +
+                   $"  ID:         {employee.EmployeeId}\n" +
+                   $"  Name:       {employee.Name}\n" +
+                   $"  Role:       {employee.Role}\n" +
+                   $"  Assignment: {assignmentInfo}";
+        }
+
+        if (entitySector == EntitySector.Ticket)
+        {
+            Ticket ticket = null;
+            foreach (var t in _tickets)
+            {
+                if (t.TicketId == id)
+                {
+                    ticket = t;
+                    break;
+                }
+            }
+
+            if (ticket == null)
+                return $"Ticket '{id}' not found.";
+
+            return $"[TICKET INFO]\n" +
+                   $"  ID:     {ticket.TicketId}\n" +
+                   $"  Type:   {ticket.Type}\n" +
+                   $"  Price:  {ticket.Price:C}\n" +
+                   $"  Status: {ticket.Status}\n" +
+                   $"  Expiry: {ticket.ExpiryDate:g}";
+        }
+
+        if (entitySector == EntitySector.Reservation)
+        {
+            Reservation reservation = null;
+            foreach (var r in _reservations)
+            {
+                if (r.ReservationId == id)
+                {
+                    reservation = r;
+                    break;
+                }
+            }
+
+            if (reservation == null)
+                return $"Reservation '{id}' not found.";
+
+            return $"[RESERVATION INFO]\n" +
+                   $"  ID:        {reservation.ReservationId}\n" +
+                   $"  Visitor:   {reservation.VisitorId}\n" +
+                   $"  Ride:      {reservation.RideId}\n" +
+                   $"  Time Slot: {reservation.TimeSlot}\n" +
+                   $"  Status:    {reservation.Status}";
+        }
+
+        return $"No record found for sector '{entitySector}' with ID '{id}'.";
     }
-
-    if (entitySector == EntitySector.Ride)
-    {
-        var ride = _rides.FirstOrDefault(r => r.RideId == id);
-        if (ride == null)
-            return $"Ride '{id}' not found.";
-
-        return $"[RIDE INFO]\n" +
-               $"  ID:         {ride.RideId}\n" +
-               $"  Name:       {ride.Name}\n" +
-               $"  Type:       {ride.Type}\n" +
-               $"  Min Age:    {ride.MinAge}\n" +
-               $"  Min Height: {ride.MinHeightCm} cm\n" +
-               $"  Occupancy:  {ride.CurrentOccupancy}/{ride.MaxCapacity}\n" +
-               $"  Status:     {ride.Status}";
-    }
-
-    if (entitySector == EntitySector.Employee)
-    {
-        var employee = _employees.FirstOrDefault(e => e.EmployeeId == id);
-        if (employee == null)
-            return $"Employee '{id}' not found.";
-
-        string assignmentInfo = employee.CurrentAssignment == null
-            ? "Not assigned"
-            : $"{employee.CurrentAssignment.RideOrFacilityId} ({employee.CurrentAssignment.Shift})";
-
-        return $"[EMPLOYEE INFO]\n" +
-               $"  ID:         {employee.EmployeeId}\n" +
-               $"  Name:       {employee.Name}\n" +
-               $"  Role:       {employee.Role}\n" +
-               $"  Assignment: {assignmentInfo}";
-    }
-
-    if (entitySector == EntitySector.Ticket)
-    {
-        var ticket = _tickets.FirstOrDefault(t => t.TicketId == id);
-        if (ticket == null)
-            return $"Ticket '{id}' not found.";
-
-        return $"[TICKET INFO]\n" +
-               $"  ID:     {ticket.TicketId}\n" +
-               $"  Type:   {ticket.Type}\n" +
-               $"  Price:  {ticket.Price:C}\n" +
-               $"  Status: {ticket.Status}\n" +
-               $"  Expiry: {ticket.ExpiryDate:g}";
-    }
-
-    if (entitySector == EntitySector.Reservation)
-    {
-        var reservation = _reservations.FirstOrDefault(r => r.ReservationId == id);
-        if (reservation == null)
-            return $"Reservation '{id}' not found.";
-
-        return $"[RESERVATION INFO]\n" +
-               $"  ID:        {reservation.ReservationId}\n" +
-               $"  Visitor:   {reservation.VisitorId}\n" +
-               $"  Ride:      {reservation.RideId}\n" +
-               $"  Time Slot: {reservation.TimeSlot}\n" +
-               $"  Status:    {reservation.Status}";
-    }
-
-    return $"No record found for sector '{entitySector}' with ID '{id}'.";
-}
 
     private decimal GetPriceForTicketType(TicketType type)
     {
