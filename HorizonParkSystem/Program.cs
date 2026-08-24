@@ -112,7 +112,9 @@ while (true)
 
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int catChoice))
+            if (!int.TryParse(Console.ReadLine(), out int catChoice) ||
+                catChoice < 1 ||
+                catChoice > 5)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");
@@ -184,7 +186,9 @@ while (true)
 
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int typeChoice))
+            if (!int.TryParse(Console.ReadLine(), out int typeChoice) ||
+                typeChoice < 1 ||
+                typeChoice > 4)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");
@@ -209,7 +213,7 @@ while (true)
             if (type != TicketType.VIP)
             {
                 Console.WriteLine();
-                Console.Write("Enter Allowed Ride IDs (e.g. R1,R2): ");
+                Console.Write("Enter Allowed Ride IDs (e.g. RIDE-1,RIDE-2): ");
 
                 string ridesInput = Console.ReadLine();
 
@@ -504,7 +508,9 @@ while (true)
 
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int typeChoice))
+            if (!int.TryParse(Console.ReadLine(), out int typeChoice)||
+                typeChoice < 1 ||
+                typeChoice > 3)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");
@@ -584,7 +590,9 @@ while (true)
 
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int statusChoice))
+            if (!int.TryParse(Console.ReadLine(), out int statusChoice)||
+                typeChoice < 1 ||
+                typeChoice > 3)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");
@@ -660,7 +668,9 @@ while (true)
 
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int statusChoice))
+            if (!int.TryParse(Console.ReadLine(), out int statusChoice)||
+                statusChoice < 1 ||
+                statusChoice > 3)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");
@@ -740,7 +750,9 @@ while (true)
             Console.WriteLine();
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int shiftChoice))
+            if (!int.TryParse(Console.ReadLine(), out int shiftChoice)||
+                shiftChoice < 1 ||
+                shiftChoice > 4)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");
@@ -847,7 +859,9 @@ while (true)
             Console.WriteLine();
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int roleChoice))
+            if (!int.TryParse(Console.ReadLine(), out int roleChoice)||
+                roleChoice < 1 ||
+                roleChoice > 4)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");
@@ -917,7 +931,9 @@ while (true)
 
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int entitySector))
+            if (!int.TryParse(Console.ReadLine(), out int entitySector)||
+                entitySector < 1 ||
+                entitySector > 5)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");
@@ -974,7 +990,9 @@ while (true)
 
             Console.Write("Choose: ");
 
-            if (!int.TryParse(Console.ReadLine(), out int entitySector))
+            if (!int.TryParse(Console.ReadLine(), out int entitySector)||
+                entitySector < 1 ||
+                entitySector > 5)
             {
                 Console.WriteLine();
                 Console.WriteLine("[ERROR] Invalid input.");

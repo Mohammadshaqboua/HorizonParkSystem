@@ -192,7 +192,7 @@ public class ParkSystemService
         return (true, "Ticket is valid.");
     }
 
-    public (bool Success, string Message) CheckRideAccess(string visitorId, string rideId)
+    public (bool Success, string Message) CheckRideAccess(string visitorId, string rideId, bool hasAccompanyingAdult = false)
     {
         Visitor visitor = null;
         foreach (var v in _visitors)
@@ -203,12 +203,10 @@ public class ParkSystemService
                 break;
             }
         }
-
         if (visitor == null)
         {
             return (false, $"Access check failed: Visitor '{visitorId}' not found.");
         }
-
         Ride ride = null;
         foreach (var r in _rides)
         {
@@ -218,23 +216,19 @@ public class ParkSystemService
                 break;
             }
         }
-
         if (ride == null)
         {
             return (false, $"Access check failed: Ride '{rideId}' not found.");
         }
-
         var ticketCheck = ValidateTicket(visitorId);
         if (!ticketCheck.Success)
         {
             return ticketCheck;
         }
-
         if (!ride.IsOpen())
         {
             return (false, $"Access denied: Ride '{ride.Name}' is currently {ride.Status}.");
         }
-
         if (!visitor.ActiveTicket.GrantsAccessToAllRides())
         {
             bool allowed = false;
@@ -246,26 +240,21 @@ public class ParkSystemService
                     break;
                 }
             }
-
             if (!allowed)
             {
                 return (false, $"Access denied: Ticket does not include access to '{ride.Name}'.");
             }
         }
-
-        var eligibility = ride.CheckEligibility(visitor);
+        var eligibility = ride.CheckEligibility(visitor, hasAccompanyingAdult);
         if (!eligibility.IsEligible)
         {
             return (false, $"Access denied: {eligibility.Reason}");
         }
-
         if (!ride.HasAvailableCapacity())
         {
             return (false, $"Access denied: Ride '{ride.Name}' is at full capacity.");
         }
-
         ride.CurrentOccupancy++;
-
         return (true, $"Access granted to '{ride.Name}'.");
     }
 

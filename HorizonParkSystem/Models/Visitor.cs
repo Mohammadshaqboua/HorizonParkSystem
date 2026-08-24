@@ -17,7 +17,7 @@ public class Visitor
     public int             HeightCm     { get; set; }
     public VisitorCategory Category     { get; set; }
     public Ticket          ActiveTicket { get; set; }   
-
+    
     public Visitor(string visitorId, string name, int age, int heightCm, VisitorCategory category)
     {
         VisitorId = visitorId;

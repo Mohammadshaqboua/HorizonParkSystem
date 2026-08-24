@@ -20,6 +20,8 @@ public class Ride
     public int               MaxCapacity               { get; set; }
     public int               CurrentOccupancy          { get; set; }
     public RideStatus        Status                    { get; set; }
+    
+    public const int AdultAge = 18;
 
     public bool IsOpen()
     {
@@ -31,7 +33,7 @@ public class Ride
         return CurrentOccupancy < MaxCapacity;
     }
 
-    public EligibilityResult CheckEligibility(Visitor visitor)
+    public EligibilityResult CheckEligibility(Visitor visitor ,bool hasAccompanyingAdult = false)
     {
         if (visitor.Age < MinAge)
             return new EligibilityResult
@@ -45,6 +47,13 @@ public class Ride
             {
                 IsEligible = false,
                 Reason = $"Visitor does not meet the minimum height requirement ({MinHeightCm}cm)."
+            };
+        
+        if (RequiresAccompanyingAdult && visitor.Age < AdultAge && !hasAccompanyingAdult)
+            return new EligibilityResult
+            {
+                IsEligible = false,
+                Reason = "This ride requires a minor to be accompanied by an adult, and none was confirmed."
             };
         
         return new EligibilityResult { IsEligible = true, Reason = "Eligible" };
