@@ -27,4 +27,21 @@ public class Ticket
     {
         return Type == TicketType.VIP;
     }
+    
+    public override string ToString()
+    {
+        string rides = GrantsAccessToAllRides()
+            ? "All Rides"
+            : AllowedRideIds.Length > 0
+                ? string.Join(", ", AllowedRideIds)
+                : "None";
+
+        return $"{TicketId,-10}" +
+               $"{Type,-12}" +
+               $"{Price,-10:C}" +
+               $"{IssueDate,-14:yyyy-MM-dd}" +
+               $"{ExpiryDate,-14:yyyy-MM-dd}" +
+               $"{Status,-12}" +
+               $"{rides,-25}";
+    }
 }

@@ -17,6 +17,7 @@ public class ParkSystemService
     private Employee[] _employees = new Employee[0];
     private Reservation[] _reservations = new Reservation[0];
     private Ticket[] _tickets = new Ticket[0];
+    
     private readonly string[] _knownFacilities = new string[]
     {
         "Main Gate", "Ticket Booth A", "Ticket Booth B", "First Aid", "Food Court"
@@ -654,6 +655,111 @@ public class ParkSystemService
 
         return $"No record found for sector '{entitySector}' with ID '{id}'.";
     }
+
+    public void DisplayAllData (EntitySector sector)
+    {
+        switch (sector)
+        {
+            case EntitySector.Visitor:
+            {
+                Console.WriteLine(
+                    $"{"ID",-8} " +
+                    $"{"Name",-20} " +
+                    $"{"Age",-5} " +
+                    $"{"Height",-8} " +
+                    $"{"Category",-12} " +
+                    $"{"Active Ticket",-15}");
+
+                Console.WriteLine(new string('-', 80));
+
+                foreach (var visitor in _visitors)
+                {
+                    Console.WriteLine(visitor.ToString());
+                }
+                break;
+            }
+            case EntitySector.Ride:
+            {
+                Console.WriteLine(
+                    $"{"ID",-8}" +
+                    $"{"Name",-20}" +
+                    $"{"Type",-12}" +
+                    $"{"Status",-10}" +
+                    $"{"Age",-4}" +
+                    $"{"Height",-8}" +
+                    $"{"Occupancy",-16}" +
+                    $"{"Requirement",-18}"
+                );
+
+                Console.WriteLine(new string('-', 96));
+
+                foreach (var ride in _rides)
+                {
+                    Console.WriteLine(ride.ToString());
+                }
+                
+                break;
+            }
+            case EntitySector.Employee:
+            {
+                Console.WriteLine(
+                    $"{"Employee ID",-10}" +
+                    $"{"Name",-20}" +
+                    $"{"Role",-22}" +
+                    $"{"Ride / Facility",-20}" +
+                    $"{"Shift",-12}" +
+                    $"{"Assigned At",-20}");
+
+                Console.WriteLine(new string('-', 104));
+                
+                foreach (var employee in _employees)
+                {
+                    Console.WriteLine(employee.ToString());
+                }
+                
+                break;
+            }
+            case EntitySector.Ticket:
+            {
+                Console.WriteLine(
+                    $"{"Ticket ID",-10}" +
+                    $"{"Type",-12}" +
+                    $"{"Price",-10}" +
+                    $"{"Issue Date",-14}" +
+                    $"{"Expiry Date",-14}" +
+                    $"{"Status",-12}" +
+                    $"{"Allowed Rides",-25}");
+
+                Console.WriteLine(new string('-', 97));
+                
+                foreach (var ticket in _tickets)
+                {
+                    Console.WriteLine(ticket.ToString());
+                }
+                
+                break;
+            }
+            case EntitySector.Reservation:
+            {
+                Console.WriteLine(
+                    $"{"ReservationID",-14}" +
+                    $"{"VisitorID",-14}" +
+                    $"{"RideID",-12}" +
+                    $"{"Time Slot",-12}" +
+                    $"{"Status",-14}" +
+                    $"{"Created At",-20}");
+
+                Console.WriteLine(new string('-', 96));
+                
+                foreach (var reservation in _reservations)
+                {
+                    Console.WriteLine(reservation.ToString());
+                }
+                
+                break;
+            }
+        }
+    } 
 
     private decimal GetPriceForTicketType(TicketType type)
     {

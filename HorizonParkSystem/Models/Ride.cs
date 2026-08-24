@@ -20,7 +20,6 @@ public class Ride
     public int               MaxCapacity               { get; set; }
     public int               CurrentOccupancy          { get; set; }
     public RideStatus        Status                    { get; set; }
-    public Reservation[]     Reservations              { get; set; } = new Reservation[0];
 
     public bool IsOpen()
     {
@@ -49,5 +48,17 @@ public class Ride
             };
         
         return new EligibilityResult { IsEligible = true, Reason = "Eligible" };
+    }
+
+    public override string ToString()
+    {
+        return $"{RideId,-8}" +
+               $"{Name,-20}" +
+               $"{Type,-12}" +
+               $"{Status,-10}" +
+               $"{MinAge,-4}" +
+               $"{(MinHeightCm + " cm"),-8}" +
+               $"{($"{CurrentOccupancy}/{MaxCapacity}"),-16}" +
+               $"{(RequiresAccompanyingAdult ? "Adult Required" : "False"),-18}";
     }
 }

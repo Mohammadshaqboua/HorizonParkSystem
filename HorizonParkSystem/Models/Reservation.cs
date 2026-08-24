@@ -17,4 +17,14 @@ public class Reservation
     public string            TimeSlot      { get; set; }
     public ReservationStatus Status        { get; set; }
     public DateTime          CreatedAt     { get; set; }
+
+    public override string ToString()
+    {
+        return $"{ReservationId,-14}" +
+               $"{VisitorId,-14}" +
+               $"{RideId,-12}" +
+               $"{TimeSlot,-12}" +
+               $"{Status,-14}" +
+               $"{CreatedAt,-20:yyyy-MM-dd HH:mm}";
+    }
 }

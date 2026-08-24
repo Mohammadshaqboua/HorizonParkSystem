@@ -13,6 +13,12 @@ public class Assignment
 {
     public string   RideOrFacilityId  { get; set; }
     public Shift    Shift             { get; set; } 
-
     public DateTime AssignedAt        { get; set; }
+
+    public override string ToString()
+    {
+        return $"{RideOrFacilityId,-20}" +
+               $"{Shift,-12}" +
+               $"{AssignedAt,-20:yyyy-MM-dd HH:mm}";
+    }
 }

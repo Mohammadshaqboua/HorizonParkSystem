@@ -33,7 +33,8 @@ while (true)
     Console.WriteLine("  [11] View Ride Occupancy Status");
     Console.WriteLine("  [12] Register Employee");
     Console.WriteLine("  [13] Get Info");
-    Console.WriteLine("  [14] Exit");
+    Console.WriteLine("  [14] Display All Data");
+    Console.WriteLine("  [15] Exit");
     Console.WriteLine();
     Console.WriteLine("-------------------------------------------------");
     Console.Write("Select an option: ");
@@ -952,9 +953,66 @@ while (true)
             Console.ReadLine();
 
             break;
-}
-        
+        }
+
         case 14:
+        {
+            Console.Clear();
+
+            Console.WriteLine("=================================================");
+            Console.WriteLine("            DISPLAY ALL DATA");
+            Console.WriteLine("=================================================");
+            Console.WriteLine();
+            
+            Console.WriteLine("Select Entity Sector:");
+            Console.WriteLine("  [1] Visitor");
+            Console.WriteLine("  [2] Ride");
+            Console.WriteLine("  [3] Employee");
+            Console.WriteLine("  [4] Ticket");
+            Console.WriteLine("  [5] Reservation");
+            Console.WriteLine();
+
+            Console.Write("Choose: ");
+
+            if (!int.TryParse(Console.ReadLine(), out int entitySector))
+            {
+                Console.WriteLine();
+                Console.WriteLine("[ERROR] Invalid input.");
+                Console.WriteLine("[INFO] Get Info cancelled.");
+                Console.WriteLine();
+                Console.Write("Press ENTER to continue...");
+                Console.ReadLine();
+                break;
+            }
+
+            EntitySector sector = entitySector switch
+            {
+                1 => EntitySector.Visitor,
+                2 => EntitySector.Ride,
+                3 => EntitySector.Employee,
+                4 => EntitySector.Ticket,
+                5 => EntitySector.Reservation,
+                _ => EntitySector.Visitor
+            };
+            
+            Console.Clear();
+            Console.WriteLine("=================================================");
+            Console.WriteLine($"          [ALL DATA IN {sector}]");
+            Console.WriteLine("=================================================");
+            Console.WriteLine();
+
+            parkService.DisplayAllData(sector);
+            
+            Console.WriteLine();
+            Console.WriteLine("-------------------------------------------------");
+
+            Console.Write("Press ENTER to continue...");
+            Console.ReadLine();
+            
+            break;
+        }
+        
+        case 15:
         {
             Console.Clear();
 

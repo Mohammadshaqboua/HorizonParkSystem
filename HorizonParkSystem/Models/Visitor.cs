@@ -26,4 +26,14 @@ public class Visitor
         HeightCm = heightCm;
         Category = category;
     }
+    
+    public override string ToString()
+    {
+        return $"{VisitorId,-10}" +
+               $"{Name,-20}" +
+               $"{Age,-6}" +
+               $"{HeightCm,-10}" +
+               $"{Category,-15}" +
+               $"{(ActiveTicket != null ? "Active" : "None"),-15}";
+    }
 }
