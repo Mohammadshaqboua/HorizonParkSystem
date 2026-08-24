@@ -3,7 +3,7 @@
 **Project type:** C# / .NET 10 Console Application 
 **Author:** Mohammad Shaqboua
 
-A console-based management system for an amusement park ("Horizon Adventure Park"). It handles visitor registration, ticket issuing/validation, ride access control, ride reservations, employee management, and shift assignment — all through a menu-driven CLI backed by an in-memory data layer.
+A console-based management system for an amusement park ("Horizon Adventure Park"). It handles visitor registration, ticket issuing/validation, ride access control, ride reservations, employee management, shift assignment, and tabular data export — all through a menu-driven CLI backed by an in-memory data layer.
 
 ---
 
@@ -64,10 +64,11 @@ The app boots into a looping text menu in the console:
   [11] View Ride Occupancy Status
   [12] Register Employee
   [13] Get Info
-  [14] Exit
+  [14] Display All Data
+  [15] Exit
 ```
 
-Pick an option by typing its number and following the prompts. Every operation prints a `[RESULT]` message reporting success or the reason for failure.
+Pick an option by typing its number and following the prompts. Every operation prints a `[RESULT]` message reporting success or the reason for failure (options 14 prints a full table instead of a single-line message).
 
 > **Note:** All data lives in memory for the lifetime of the process — nothing is persisted to disk or a database. Closing the app discards all visitors, tickets, rides, employees, and reservations.
 
@@ -78,7 +79,8 @@ Pick an option by typing its number and following the prompts. Every operation p
 4. **Validate Ride Access** (option 5) to check the visitor into a ride — this increments the ride's occupancy.
 5. Optionally **Create Reservation** (option 6) to reserve a ride/time slot ahead of time.
 6. **Register Employee** (option 12) and **Assign Employee** (option 10) to staff rides or facilities.
-7. Use **Get Info** (option 13) or **View Ride Occupancy Status** (option 11) at any time to inspect the current state.
+7. Use **Get Info** (option 13) to inspect a single entity by ID, or **View Ride Occupancy Status** (option 11) for a single ride's live occupancy.
+8. Use **Display All Data** (option 14) to print every record in a chosen entity sector (Visitors, Rides, Employees, Tickets, or Reservations) as a formatted table at once.
 
 ---
 
@@ -88,11 +90,11 @@ Pick an option by typing its number and following the prompts. Every operation p
 |---|---|
 | **Visitor Management** | Register visitors with age/height validation (0–120 years, 50–200 cm); auto-generated visitor IDs (`V-#`). |
 | **Ticketing** | Issue tickets of 4 types (Regular, VIP, Child, Senior) with per-type pricing; restrict Regular/Child/Senior tickets to specific ride IDs; VIP tickets auto-grant access to all rides; prevent duplicate active tickets per visitor; deactivate (cancel) tickets; validate ticket status/expiry (1-day validity). |
-| **Ride Access Control** | Full eligibility pipeline combining ticket validity, ride open/closed/maintenance status, ride-specific ticket permissions, age/height eligibility, and live capacity checks; increments ride occupancy on successful entry. |
+| **Ride Access Control** | Full eligibility pipeline combining ticket validity, ride open/closed/maintenance status, ride-specific ticket permissions, age/height eligibility, an accompanying-adult check for rides that require one, and live capacity checks; increments ride occupancy on successful entry. |
 | **Reservations** | Create time-slot reservations per visitor/ride with duplicate-booking prevention and per-slot capacity enforcement; cancel reservations. |
 | **Ride Management** | Add new rides with configurable type, age/height minimums, adult-accompaniment requirement, and capacity; update ride operational status (Open / Closed / Under Maintenance); query live occupancy. |
 | **Employee Management** | Register employees with a role; assign employees to a ride or a known facility for a given shift, with a duplicate-assignment guard. |
-| **Lookup / Reporting** | Unified "Get Info" lookup across Visitors, Rides, Employees, Tickets, and Reservations, returning a formatted detail block for any entity by ID. |
+| **Lookup / Reporting** | Unified "Get Info" lookup across Visitors, Rides, Employees, Tickets, and Reservations, returning a formatted detail block for any entity by ID; a "Display All Data" table view that prints every record in a chosen entity sector at once, using each model's `ToString()`. |
 | **CLI** | Menu-driven console interface with input validation, clear `[ERROR]` / `[RESULT]` / `[INFO]` messaging, and a continuous loop until Exit. |
 
 ---
@@ -133,7 +135,7 @@ Short reference for every enumeration in the `HorizonParkSystem.Enums` namespace
 
 | Enum | Values | Purpose |
 |---|---|---|
-| `EntitySector` | `Visitor`, `Ride`, `Employee`, `Ticket`, `Reservation` | Selects which entity type the "Get Info" lookup should search. |
+| `EntitySector` | `Visitor`, `Ride`, `Employee`, `Ticket`, `Reservation` | Selects which entity type the "Get Info" and "Display All Data" lookups should search. |
 | `ReservationStatus` | `Active`, `Cancelled` | Tracks whether a ride reservation is still valid or has been cancelled. |
 | `RideStatus` | `Open`, `Closed`, `UnderMaintenance` | Current operational state of a ride; controls whether it can be entered or reserved. |
 | `RideType` | `Thrill`, `Family`, `Water` | Category of a ride. |
@@ -147,7 +149,7 @@ Short reference for every enumeration in the `HorizonParkSystem.Enums` namespace
 
 ## Models
 
-All model classes live in the `HorizonParkSystem.Models` namespace. They are plain data-holder classes; validation and behavior mostly live in the service layer, with two exceptions (`Ride` and `Ticket`) that carry a few self-contained helper methods.
+All model classes live in the `HorizonParkSystem.Models` namespace. They are mostly plain data-holder classes; validation and behavior mostly live in the service layer, with two exceptions (`Ride` and `Ticket`) that carry a few self-contained helper methods. Every model now also overrides `ToString()` to produce a single formatted table row, used by `ParkSystemService.DisplayAllData` — the only exception is `EligibilityResult`, which is a transient result object rather than a stored entity.
 
 ### `Visitor`
 
@@ -161,6 +163,9 @@ All model classes live in the `HorizonParkSystem.Models` namespace. They are pla
 | `ActiveTicket` | `Ticket` | The visitor's currently active ticket, if any. |
 
 Has a constructor requiring `visitorId, name, age, heightCm, category`.
+
+**Methods:**
+- `ToString()` — returns a formatted row (ID, name, age, height, category, active ticket) for tabular display.
 
 ### `Ticket`
 
@@ -177,6 +182,7 @@ Has a constructor requiring `visitorId, name, age, heightCm, category`.
 **Methods:**
 - `IsValid()` — returns `true` only if `Status == Active` **and** `DateTime.Now <= ExpiryDate`.
 - `GrantsAccessToAllRides()` — returns `true` only for `TicketType.VIP`.
+- `ToString()` — returns a formatted row (ID, type, price, issue date, expiry date, status, allowed rides) for tabular display.
 
 ### `Ride`
 
@@ -187,16 +193,20 @@ Has a constructor requiring `visitorId, name, age, heightCm, category`.
 | `Type` | `RideType` | Thrill / Family / Water. |
 | `MinAge` | `int` | Minimum rider age. |
 | `MinHeightCm` | `int` | Minimum rider height. |
-| `RequiresAccompanyingAdult` | `bool` | Flag recorded at creation (not enforced in current access logic). |
+| `RequiresAccompanyingAdult` | `bool` | Flag recorded at creation; now enforced by `CheckEligibility` (see below). |
 | `MaxCapacity` | `int` | Maximum concurrent riders / reservations per slot. |
 | `CurrentOccupancy` | `int` | Live count of visitors currently on the ride. |
 | `Status` | `RideStatus` | Open / Closed / UnderMaintenance. |
 | `Reservations` | `Reservation[]` | Declared on the model but not populated by the service (reservations are tracked centrally instead — see Known Limitations). |
 
+**Constants:**
+- `AdultAge` (`const int` = `18`) — the age threshold used by the accompanying-adult check below.
+
 **Methods:**
 - `IsOpen()` — `true` if `Status == RideStatus.Open`.
 - `HasAvailableCapacity()` — `true` if `CurrentOccupancy < MaxCapacity`.
-- `CheckEligibility(Visitor visitor)` — returns an `EligibilityResult` checking the visitor's age and height against `MinAge` / `MinHeightCm`.
+- `CheckEligibility(Visitor visitor, bool hasAccompanyingAdult = false)` — returns an `EligibilityResult` checking, in order: the visitor's age against `MinAge`, the visitor's height against `MinHeightCm`, and — if `RequiresAccompanyingAdult` is `true` **and** the visitor's age is below `AdultAge` (18) **and** `hasAccompanyingAdult` is `false` — fails with a message stating the ride requires a minor to be accompanied by an adult and none was confirmed. Returns eligible only if all checks pass.
+- `ToString()` — returns a formatted row (ID, name, type, status, min age, min height, occupancy/capacity, and the accompanying-adult requirement) for tabular display.
 
 ### `Employee`
 
@@ -206,6 +216,9 @@ Has a constructor requiring `visitorId, name, age, heightCm, category`.
 | `Name` | `string` | Employee's full name. |
 | `Role` | `Role` | Job role. |
 | `CurrentAssignment` | `Assignment` | The employee's current ride/facility + shift assignment, if any. |
+
+**Methods:**
+- `ToString()` — returns a formatted row (employee ID, name, role, ride/facility, shift, assigned-at timestamp) for tabular display.
 
 ### `Assignment`
 
@@ -225,6 +238,9 @@ Has a constructor requiring `visitorId, name, age, heightCm, category`.
 | `TimeSlot` | `string` | Time slot string (validated as a `TimeSpan`, e.g. `"14:30"`). |
 | `Status` | `ReservationStatus` | Active / Cancelled. |
 | `CreatedAt` | `DateTime` | Timestamp the reservation was created. |
+
+**Methods:**
+- `ToString()` — returns a formatted row (reservation ID, visitor ID, ride ID, time slot, status, created-at timestamp) for tabular display.
 
 ### `EligibilityResult`
 
@@ -262,9 +278,11 @@ The core access-control pipeline for entering a ride:
 2. Delegates ticket validity to `ValidateTicket` and short-circuits on failure.
 3. Ride must be `Open` (`ride.IsOpen()`).
 4. If the ticket is not VIP (`GrantsAccessToAllRides()` is false), the ride ID must be present in the ticket's `AllowedRideIds`.
-5. Runs `ride.CheckEligibility(visitor)` for age/height requirements.
+5. Runs `ride.CheckEligibility(visitor, hasAccompanyingAdult)` for age/height requirements, and — for rides flagged `RequiresAccompanyingAdult` — the accompanying-adult check described under the `Ride` model.
 6. Ride must have available capacity (`HasAvailableCapacity()`).
 7. On full success, increments `ride.CurrentOccupancy` and returns a success message.
+
+> ⚠️ **Worth double-checking:** the CLI's "Validate Ride Access" flow (option 5) only prompts for a Visitor ID and a Ride ID — it doesn't currently ask staff to confirm whether an accompanying adult is present. If `CheckRideAccess` doesn't collect and forward that confirmation from elsewhere, `hasAccompanyingAdult` will effectively always be `false` for CLI-driven checks, meaning any ride with `RequiresAccompanyingAdult = true` will always block unaccompanied minors — which may be the intended behavior, but is worth confirming against the actual service code.
 
 ### `CreateReservation(visitorId, rideId, timeSlot)`
 1. Visitor and ride must exist, and the ride must be `Open`.
@@ -302,6 +320,14 @@ A single dispatcher that, based on the requested `EntitySector`, searches the co
 - **Ticket** → ID, type, price, status, and expiry.
 - **Reservation** → ID, visitor, ride, time slot, and status.
 
+### `DisplayAllData(entitySector)`
+A `void` dispatcher (no return value) that prints a full table of **every** record in the requested `EntitySector` directly to the console, rather than looking up a single ID:
+1. Prints a column-header line whose labels match the chosen sector (e.g. ID / Name / Age / Height / Category / Active Ticket for `Visitor`).
+2. Prints a `-` separator line sized to the header.
+3. Iterates the corresponding in-memory array (`_visitors`, `_rides`, `_employees`, `_tickets`, or `_reservations`) and writes each item's `ToString()` as one row.
+
+Unlike `GetInfo`, this method doesn't return a string for the CLI to print — it writes straight to `Console.Out` itself, so `Program.cs` just calls it and moves on.
+
 ### `GetPriceForTicketType(type)` *(private)*
 A simple switch mapping `TicketType` to price: VIP = 100, Regular = 50, Child = 30, Senior = 35 (defaulting to 50).
 
@@ -314,7 +340,7 @@ Resizes the array by one slot and appends `item` at the end. Used by every "crea
 
 `Program.cs` is a top-level-statements entry point. It instantiates one `ParkSystemService` and runs an infinite `while (true)` loop that:
 
-1. Clears the console and prints the main menu (14 numbered options).
+1. Clears the console and prints the main menu (15 numbered options).
 2. Reads a line of input and parses it as an integer; on parse failure, shows an error and restarts the loop.
 3. Uses a `switch` on the chosen number, where each `case` block:
    - Clears the console and prints a section header.
@@ -323,10 +349,11 @@ Resizes the array by one slot and appends `item` at the end. Used by every "crea
    - Calls the matching `ParkSystemService` method.
    - Prints the returned `Message` (or the returned string, for options 11 and 13) under a `[RESULT]` header.
    - Waits for `Enter` before looping back to the menu.
-4. `case 14` prints a goodbye message and returns, ending the program.
-5. `default` handles any unrecognized menu number with an error message.
+4. `case 14` prompts for an `EntitySector` via the same numbered sub-menu pattern, clears the console, and calls `parkService.DisplayAllData(sector)`, which prints a full table of every record in that sector directly to the console (this case doesn't go through the `[RESULT]` block, since `DisplayAllData` returns `void`).
+5. `case 15` prints a goodbye message and returns, ending the program.
+6. `default` handles any unrecognized menu number with an error message.
 
-Because the loop only exits on option 14, the application behaves as a persistent session: all objects created (visitors, rides, tickets, etc.) remain available in memory for later menu selections until the process exits.
+Because the loop only exits on option 15, the application behaves as a persistent session: all objects created (visitors, rides, tickets, etc.) remain available in memory for later menu selections until the process exits.
 
 ---
 
@@ -354,6 +381,7 @@ classDiagram
         +GetRideOccupancyStatus(rideId) string
         +RegisterEmployee(name, role) Result
         +GetInfo(entitySector, id) string
+        +DisplayAllData(entitySector) void
         -GetPriceForTicketType(type) decimal
         -AddToArray~T~(array, item) void
     }
@@ -365,6 +393,7 @@ classDiagram
         +int HeightCm
         +VisitorCategory Category
         +Ticket ActiveTicket
+        +ToString() string
     }
 
     class Ticket {
@@ -377,6 +406,7 @@ classDiagram
         +string[] AllowedRideIds
         +IsValid() bool
         +GrantsAccessToAllRides() bool
+        +ToString() string
     }
 
     class Ride {
@@ -390,9 +420,11 @@ classDiagram
         +int CurrentOccupancy
         +RideStatus Status
         +Reservation[] Reservations
+        +const int AdultAge
         +IsOpen() bool
         +HasAvailableCapacity() bool
-        +CheckEligibility(visitor) EligibilityResult
+        +CheckEligibility(visitor, hasAccompanyingAdult) EligibilityResult
+        +ToString() string
     }
 
     class Employee {
@@ -400,12 +432,14 @@ classDiagram
         +string Name
         +Role Role
         +Assignment CurrentAssignment
+        +ToString() string
     }
 
     class Assignment {
         +string RideOrFacilityId
         +Shift Shift
         +DateTime AssignedAt
+        +ToString() string
     }
 
     class Reservation {
@@ -415,6 +449,7 @@ classDiagram
         +string TimeSlot
         +ReservationStatus Status
         +DateTime CreatedAt
+        +ToString() string
     }
 
     class EligibilityResult {
@@ -476,7 +511,7 @@ sequenceDiagram
     Service->>Service: ValidateTicket(visitorId)
     Service->>Service: ride.IsOpen()
     Service->>Service: Check AllowedRideIds (skip if VIP)
-    Service->>Service: ride.CheckEligibility(visitor) -> EligibilityResult
+    Service->>Service: ride.CheckEligibility(visitor, hasAccompanyingAdult) -> EligibilityResult
     Service->>Service: ride.HasAvailableCapacity()
     Service->>Store: ride.CurrentOccupancy++
     Service-->>Program: (Success, Message)
@@ -487,6 +522,11 @@ sequenceDiagram
     Service->>Store: Search matching array by ID
     Service-->>Program: Formatted detail string
     Program-->>Staff: Print [RESULT]
+
+    Staff->>Program: Select "Display All Data"
+    Program->>Service: DisplayAllData(entitySector)
+    Service->>Store: Iterate every record in the chosen array
+    Service->>Staff: Print header + one ToString() row per record
 ```
 
 **Summary of the flow:**
@@ -494,7 +534,7 @@ sequenceDiagram
 2. Every action is delegated to the single **`ParkSystemService`** instance created at startup, which acts as the sole gatekeeper for all business rules (validation, eligibility, capacity, duplicate checks).
 3. `ParkSystemService` reads from and writes to its private **in-memory arrays** (`_visitors`, `_rides`, `_tickets`, `_reservations`, `_employees`), which are the only persistent state for the lifetime of the process.
 4. Related entities are cross-referenced by ID string (e.g. a `Ticket.AllowedRideIds` referencing `Ride.RideId`, or a `Reservation.VisitorId` referencing `Visitor.VisitorId`) rather than by object reference — lookups are done via linear search each time.
-5. Results always flow back up as a `(bool Success, string Message)` tuple (or a formatted string for read-only queries), which the CLI prints verbatim without further interpretation.
+5. Results always flow back up as a `(bool Success, string Message)` tuple, a formatted string for `GetInfo`, or (for `DisplayAllData` alone) written straight to the console with no return value, which the CLI prints/relays verbatim without further interpretation.
 
 ---
 
@@ -503,6 +543,6 @@ sequenceDiagram
 - **No persistence:** all data is lost when the application exits (no file/database storage).
 - **Linear search everywhere:** entities are stored in plain arrays and located with `foreach` loops rather than dictionaries/indexes, which is fine at small scale but not efficient for large datasets.
 - **`Ride.Reservations` is unused:** the property exists on the model but `CreateReservation` stores reservations only in the service's central `_reservations` array, never populating this array on the `Ride` object.
-- **`RequiresAccompanyingAdult` is not enforced:** the flag is stored on `Ride` but `CheckEligibility`/`CheckRideAccess` never validates it.
+- **Accompanying-adult confirmation isn't collected by the CLI:** `Ride.CheckEligibility` now enforces `RequiresAccompanyingAdult` via a `hasAccompanyingAdult` parameter, but the "Validate Ride Access" menu option only prompts for a Visitor ID and Ride ID — it never asks staff to confirm an adult is present. Unless `CheckRideAccess` sources this value from somewhere else, it will effectively always evaluate as `false`, meaning any ride with `RequiresAccompanyingAdult = true` will block every unaccompanied minor with no way for staff to override it through the CLI.
 - **`AssignEmployee` shift-conflict check is shift-only:** it blocks re-assignment whenever the employee's current shift matches the requested shift, even if the new location differs, rather than checking for a true double-booking.
 - **No automatic ticket expiration sweep:** a ticket only becomes practically invalid when `IsValid()` is evaluated (during `ValidateTicket`); the `TicketStatus.Expired` enum value itself is never actually assigned anywhere in the code.
