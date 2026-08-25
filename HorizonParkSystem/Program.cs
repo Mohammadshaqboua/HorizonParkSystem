@@ -135,11 +135,30 @@ while (true)
                 _ => VisitorCategory.General
             };
 
+            bool hasAccompanyingAdult = false;
+            
+            if (category == VisitorCategory.Child)
+            {
+                
+                Console.WriteLine();
+                Console.Write("Is the child accompanied by an adult? (y/n): ");
+                string accompaniedAnswer = Console.ReadLine();
+                
+                if(accompaniedAnswer.Trim().ToLower() == "y")
+                    hasAccompanyingAdult = true;
+                else
+                {
+                    hasAccompanyingAdult = false;
+                }
+
+            }
+            
             var result = parkService.RegisterVisitor(
                 name,
                 age,
                 heightCm,
-                category
+                category,
+                hasAccompanyingAdult
             );
 
             Console.WriteLine();
@@ -355,10 +374,14 @@ while (true)
                 Console.ReadLine();
                 break;
             }
+            
+            var vistor = parkService.GetVisitor(visitorId);
+            var hasAccompanyingAdult = vistor.HasAccompanyingAdult;
 
             var result = parkService.CheckRideAccess(
                 visitorId,
-                rideId
+                rideId,
+                hasAccompanyingAdult
             );
 
             Console.WriteLine();

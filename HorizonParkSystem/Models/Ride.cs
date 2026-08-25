@@ -33,7 +33,7 @@ public class Ride
         return CurrentOccupancy < MaxCapacity;
     }
 
-    public EligibilityResult CheckEligibility(Visitor visitor ,bool hasAccompanyingAdult = false)
+    public EligibilityResult CheckEligibility(Visitor visitor ,bool hasAccompanyingAdult)
     {
         if (visitor.Age < MinAge)
             return new EligibilityResult

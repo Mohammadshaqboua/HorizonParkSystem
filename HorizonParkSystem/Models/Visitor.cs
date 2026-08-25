@@ -17,14 +17,16 @@ public class Visitor
     public int             HeightCm     { get; set; }
     public VisitorCategory Category     { get; set; }
     public Ticket          ActiveTicket { get; set; }   
+    public bool            HasAccompanyingAdult { get; set; }
     
-    public Visitor(string visitorId, string name, int age, int heightCm, VisitorCategory category)
+    public Visitor(string visitorId, string name, int age, int heightCm, VisitorCategory category ,bool hasAccompanyingAdult)
     {
         VisitorId = visitorId;
         Name = name;
         Age = age;
         HeightCm = heightCm;
         Category = category;
+        HasAccompanyingAdult = hasAccompanyingAdult;
     }
     
     public override string ToString()
@@ -34,6 +36,7 @@ public class Visitor
                $"{Age,-6}" +
                $"{HeightCm,-10}" +
                $"{Category,-15}" +
+               $"{HasAccompanyingAdult,-22}" +
                $"{(ActiveTicket != null ? "Active" : "None"),-15}";
     }
 }

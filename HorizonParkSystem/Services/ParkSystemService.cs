@@ -38,7 +38,8 @@ public class ParkSystemService
         string name,
         int age,
         int heightCm,
-        VisitorCategory category)
+        VisitorCategory category,
+        bool hasAccompanyingAdult)
     {
         if (age < 0 || age > 120)
         {
@@ -52,7 +53,7 @@ public class ParkSystemService
 
         string visitorId = $"V-{_visitorCounter++}";
 
-        Visitor visitor = new Visitor(visitorId, name, age, heightCm, category);
+        Visitor visitor = new Visitor(visitorId, name, age, heightCm, category,hasAccompanyingAdult);
 
         AddToArray(ref _visitors, visitor);
         return (true, $"Visitor '{name}' registered successfully with ID {visitorId}.");
@@ -192,7 +193,7 @@ public class ParkSystemService
         return (true, "Ticket is valid.");
     }
 
-    public (bool Success, string Message) CheckRideAccess(string visitorId, string rideId, bool hasAccompanyingAdult = false)
+    public (bool Success, string Message) CheckRideAccess(string visitorId, string rideId, bool hasAccompanyingAdult)
     {
         Visitor visitor = null;
         foreach (var v in _visitors)
@@ -542,6 +543,7 @@ public class ParkSystemService
                    $"  Age:      {visitor.Age}\n" +
                    $"  Height:   {visitor.HeightCm} cm\n" +
                    $"  Category: {visitor.Category}\n" +
+                   $"  Accompanying Adult: {visitor.HasAccompanyingAdult}\n"+
                    $"  Ticket:   {ticketInfo}";
         }
 
@@ -652,14 +654,16 @@ public class ParkSystemService
             case EntitySector.Visitor:
             {
                 Console.WriteLine(
-                    $"{"ID",-8} " +
-                    $"{"Name",-20} " +
-                    $"{"Age",-5} " +
-                    $"{"Height",-8} " +
-                    $"{"Category",-12} " +
-                    $"{"Active Ticket",-15}");
+                    $"{"ID",-10}" +
+                    $"{"Name",-20}" +
+                    $"{"Age",-6}" +
+                    $"{"Height",-10}" +
+                    $"{"Category",-15}" +
+                    $"{"Accompanying Adult",-22}" +
+                    $"{"Active Ticket",-15}"
+                );
 
-                Console.WriteLine(new string('-', 80));
+                Console.WriteLine(new string('-', 91));
 
                 foreach (var visitor in _visitors)
                 {
@@ -748,7 +752,19 @@ public class ParkSystemService
                 break;
             }
         }
-    } 
+    }
+
+    public Visitor GetVisitor(string id)
+    {
+        foreach (var visitor in _visitors)
+        {
+            if (visitor.VisitorId == id)
+            {
+                return visitor;
+            }
+        }
+        return null;
+    }
 
     private decimal GetPriceForTicketType(TicketType type)
     {
