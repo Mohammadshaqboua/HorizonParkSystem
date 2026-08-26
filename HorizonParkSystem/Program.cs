@@ -375,8 +375,19 @@ while (true)
                 break;
             }
             
-            var vistor = parkService.GetVisitor(visitorId);
-            var hasAccompanyingAdult = vistor.HasAccompanyingAdult;
+            var visitor = parkService.GetVisitor(visitorId);
+            if (visitor == null)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"[ERROR] Visitor '{visitorId}' not found.");
+                Console.WriteLine("[INFO] Operation cancelled.");
+                Console.WriteLine();
+                Console.Write("Press ENTER to continue...");
+                Console.ReadLine();
+                break;
+            }
+
+            bool hasAccompanyingAdult = visitor.HasAccompanyingAdult;
 
             var result = parkService.CheckRideAccess(
                 visitorId,
