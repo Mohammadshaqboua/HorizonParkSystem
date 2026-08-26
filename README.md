@@ -161,11 +161,12 @@ All model classes live in the `HorizonParkSystem.Models` namespace. They are mos
 | `HeightCm` | `int` | Visitor's height in centimeters, used for ride eligibility. |
 | `Category` | `VisitorCategory` | Visitor classification chosen at registration. |
 | `ActiveTicket` | `Ticket` | The visitor's currently active ticket, if any. |
+| `HasAccompanyingAdult` | `bool` | Whether the visitor is confirmed to be accompanied by an adult. Captured once at registration (the CLI only asks when `Category == Child`; otherwise it defaults to `false`) and reused for every later `CheckRideAccess` call — it is not re-asked at the ride itself. |
 
-Has a constructor requiring `visitorId, name, age, heightCm, category`.
+Has a constructor requiring `visitorId, name, age, heightCm, category, hasAccompanyingAdult`.
 
 **Methods:**
-- `ToString()` — returns a formatted row (ID, name, age, height, category, active ticket) for tabular display.
+- `ToString()` — returns a formatted row (ID, name, age, height, category, accompanying-adult flag, active ticket) for tabular display.
 
 ### `Ticket`
 
@@ -205,7 +206,7 @@ Has a constructor requiring `visitorId, name, age, heightCm, category`.
 **Methods:**
 - `IsOpen()` — `true` if `Status == RideStatus.Open`.
 - `HasAvailableCapacity()` — `true` if `CurrentOccupancy < MaxCapacity`.
-- `CheckEligibility(Visitor visitor, bool hasAccompanyingAdult = false)` — returns an `EligibilityResult` checking, in order: the visitor's age against `MinAge`, the visitor's height against `MinHeightCm`, and — if `RequiresAccompanyingAdult` is `true` **and** the visitor's age is below `AdultAge` (18) **and** `hasAccompanyingAdult` is `false` — fails with a message stating the ride requires a minor to be accompanied by an adult and none was confirmed. Returns eligible only if all checks pass.
+- `CheckEligibility(Visitor visitor, bool hasAccompanyingAdult)` — returns an `EligibilityResult` checking, in order: the visitor's age against `MinAge`, the visitor's height against `MinHeightCm`, and — if `RequiresAccompanyingAdult` is `true` **and** the visitor's age is below `AdultAge` (18) **and** `hasAccompanyingAdult` is `false` — fails with a message stating the ride requires a minor to be accompanied by an adult and none was confirmed. Returns eligible only if all checks pass. `hasAccompanyingAdult` is now a required parameter (no default) — callers must always supply it explicitly.
 - `ToString()` — returns a formatted row (ID, name, type, status, min age, min height, occupancy/capacity, and the accompanying-adult requirement) for tabular display.
 
 ### `Employee`
@@ -257,8 +258,8 @@ Has a constructor requiring `visitorId, name, age, heightCm, category`.
 
 Most public methods return a `(bool Success, string Message)` tuple: `Success` indicates whether the operation completed, and `Message` is a human-readable outcome that the CLI prints directly.
 
-### `RegisterVisitor(name, age, heightCm, category)`
-Validates that `age` is between 0–120 and `heightCm` is between 50–200. If valid, generates a new `V-{n}` ID, constructs a `Visitor`, and appends it to `_visitors`. Returns a failure message if either range check fails, otherwise a success message including the new ID.
+### `RegisterVisitor(name, age, heightCm, category, hasAccompanyingAdult)`
+Validates that `age` is between 0–120 and `heightCm` is between 50–200. If valid, generates a new `V-{n}` ID, constructs a `Visitor` (storing `hasAccompanyingAdult` as given — the CLI only prompts for this when `category == VisitorCategory.Child`, otherwise it passes `false`), and appends it to `_visitors`. Returns a failure message if either range check fails, otherwise a success message including the new ID.
 
 ### `IssueTicket(visitorId, type, allowedRideIds)`
 1. Looks up the visitor by ID (fails if not found).
@@ -266,13 +267,16 @@ Validates that `age` is between 0–120 and `heightCm` is between 50–200. If v
 3. Fails if the visitor already holds an active ticket.
 4. Computes the price via `GetPriceForTicketType`, builds a `Ticket` with a 1-day expiry from now, stores it in `_tickets`, and sets it as the visitor's `ActiveTicket`.
 
+### `GetVisitor(id)`
+A public lookup helper that searches `_visitors` by `VisitorId` and returns the matching `Visitor` object, or `null` if none is found. Unlike the per-entity lookups embedded privately inside other methods, this one is exposed publicly so `Program.cs` can read a visitor's stored fields directly — currently used in the "Validate Ride Access" flow to retrieve the visitor's stored `HasAccompanyingAdult` value before calling `CheckRideAccess`. The CLI null-checks the result before use (see Program Flow below).
+
 ### `DeactivateTicket(visitorId)`
 Looks up the visitor, fails if not found or if they have no ticket or an already-cancelled ticket, otherwise sets the ticket's `Status` to `Cancelled`.
 
 ### `ValidateTicket(visitorId)`
 Looks up the visitor and checks, in order: visitor exists → ticket exists → ticket not cancelled → `ticket.IsValid()` (active status and not expired). Returns the first failure encountered, or a success message if all checks pass. This method is also called internally by `CheckRideAccess`.
 
-### `CheckRideAccess(visitorId, rideId)`
+### `CheckRideAccess(visitorId, rideId, hasAccompanyingAdult = false)`
 The core access-control pipeline for entering a ride:
 1. Visitor and ride must both exist.
 2. Delegates ticket validity to `ValidateTicket` and short-circuits on failure.
@@ -282,7 +286,7 @@ The core access-control pipeline for entering a ride:
 6. Ride must have available capacity (`HasAvailableCapacity()`).
 7. On full success, increments `ride.CurrentOccupancy` and returns a success message.
 
-> ⚠️ **Worth double-checking:** the CLI's "Validate Ride Access" flow (option 5) only prompts for a Visitor ID and a Ride ID — it doesn't currently ask staff to confirm whether an accompanying adult is present. If `CheckRideAccess` doesn't collect and forward that confirmation from elsewhere, `hasAccompanyingAdult` will effectively always be `false` for CLI-driven checks, meaning any ride with `RequiresAccompanyingAdult = true` will always block unaccompanied minors — which may be the intended behavior, but is worth confirming against the actual service code.
+The `hasAccompanyingAdult` value is no longer collected at the point of the ride check. Instead, the CLI's "Validate Ride Access" flow (option 5) calls `GetVisitor(visitorId)` and forwards the visitor's own stored `HasAccompanyingAdult` (set once back at registration) into this call. See Known Limitations for the tradeoffs of that approach.
 
 ### `CreateReservation(visitorId, rideId, timeSlot)`
 1. Visitor and ride must exist, and the ride must be `Open`.
@@ -346,6 +350,8 @@ Resizes the array by one slot and appends `item` at the end. Used by every "crea
    - Clears the console and prints a section header.
    - Prompts for the required inputs one at a time via `Console.ReadLine()`, validating each (empty-string checks for text, `int.TryParse`/`bool.TryParse` for numbers) and aborting the operation back to the menu on the first invalid input.
    - For inputs that map to an enum (visitor category, ticket type, ride type/status, shift, role, entity sector), shows a small numbered sub-menu and converts the numeric choice to the enum value via a `switch` expression, defaulting to the first enum value on an unrecognized number.
+   - **Register Visitor** (option 1) additionally prompts "Is the child accompanied by an adult? (y/n)" whenever the chosen category is `Child`, and passes the resulting `bool` into `RegisterVisitor` as `hasAccompanyingAdult` (defaulting to `false` for every other category).
+   - **Validate Ride Access** (option 5) calls `parkService.GetVisitor(visitorId)` and reads `HasAccompanyingAdult` off the returned visitor to pass into `CheckRideAccess`, rather than asking staff to confirm it again at the ride. The result is null-checked first — an unrecognized Visitor ID prints a graceful `[ERROR]` and cancels the operation, the same as every other option's ID lookups, instead of throwing.
    - Calls the matching `ParkSystemService` method.
    - Prints the returned `Message` (or the returned string, for options 11 and 13) under a `[RESULT]` header.
    - Waits for `Enter` before looping back to the menu.
@@ -368,11 +374,12 @@ classDiagram
         -Reservation[] _reservations
         -Ticket[] _tickets
         -string[] _knownFacilities
-        +RegisterVisitor(name, age, heightCm, category) Result
+        +RegisterVisitor(name, age, heightCm, category, hasAccompanyingAdult) Result
         +IssueTicket(visitorId, type, allowedRideIds) Result
+        +GetVisitor(id) Visitor
         +DeactivateTicket(visitorId) Result
         +ValidateTicket(visitorId) Result
-        +CheckRideAccess(visitorId, rideId) Result
+        +CheckRideAccess(visitorId, rideId, hasAccompanyingAdult) Result
         +CreateReservation(visitorId, rideId, timeSlot) Result
         +CancelReservation(reservationId) Result
         +AddRide(ride) Result
@@ -393,6 +400,7 @@ classDiagram
         +int HeightCm
         +VisitorCategory Category
         +Ticket ActiveTicket
+        +bool HasAccompanyingAdult
         +ToString() string
     }
 
@@ -488,9 +496,10 @@ sequenceDiagram
 
     Staff->>Program: Select "Register Visitor"
     Program->>Program: Read & validate name/age/height/category
-    Program->>Service: RegisterVisitor(name, age, height, category)
+    Program->>Staff: If category = Child, ask "accompanied by an adult?"
+    Program->>Service: RegisterVisitor(name, age, height, category, hasAccompanyingAdult)
     Service->>Service: Validate age (0-120) & height (50-200)
-    Service->>Store: Append new Visitor (ID: V-#)
+    Service->>Store: Append new Visitor (ID: V-#, stores HasAccompanyingAdult)
     Service-->>Program: (Success, Message)
     Program-->>Staff: Print [RESULT]
 
@@ -506,7 +515,11 @@ sequenceDiagram
     Program-->>Staff: Print [RESULT]
 
     Staff->>Program: Select "Validate Ride Access"
-    Program->>Service: CheckRideAccess(visitorId, rideId)
+    Program->>Service: GetVisitor(visitorId)
+    Service->>Store: Find Visitor by ID
+    Service-->>Program: Visitor (with stored HasAccompanyingAdult), or null
+    Program->>Program: If null, print [ERROR] and cancel operation
+    Program->>Service: CheckRideAccess(visitorId, rideId, hasAccompanyingAdult)
     Service->>Store: Find Visitor & Ride by ID
     Service->>Service: ValidateTicket(visitorId)
     Service->>Service: ride.IsOpen()
@@ -543,6 +556,6 @@ sequenceDiagram
 - **No persistence:** all data is lost when the application exits (no file/database storage).
 - **Linear search everywhere:** entities are stored in plain arrays and located with `foreach` loops rather than dictionaries/indexes, which is fine at small scale but not efficient for large datasets.
 - **`Ride.Reservations` is unused:** the property exists on the model but `CreateReservation` stores reservations only in the service's central `_reservations` array, never populating this array on the `Ride` object.
-- **Accompanying-adult confirmation isn't collected by the CLI:** `Ride.CheckEligibility` now enforces `RequiresAccompanyingAdult` via a `hasAccompanyingAdult` parameter, but the "Validate Ride Access" menu option only prompts for a Visitor ID and Ride ID — it never asks staff to confirm an adult is present. Unless `CheckRideAccess` sources this value from somewhere else, it will effectively always evaluate as `false`, meaning any ride with `RequiresAccompanyingAdult = true` will block every unaccompanied minor with no way for staff to override it through the CLI.
+- **Accompanying-adult status is captured once at registration, not per ride visit:** `Visitor.HasAccompanyingAdult` is set a single time when the visitor is registered (only asked if `Category == Child`) and is reused for every subsequent `CheckRideAccess` call for that visitor, for the entire lifetime of the process. This means the flag can go stale: a child marked "accompanied" at registration is still treated as accompanied on every later ride check even if they later go off on their own, and there's no way through the current CLI to update it after registration without re-registering the visitor.
 - **`AssignEmployee` shift-conflict check is shift-only:** it blocks re-assignment whenever the employee's current shift matches the requested shift, even if the new location differs, rather than checking for a true double-booking.
 - **No automatic ticket expiration sweep:** a ticket only becomes practically invalid when `IsValid()` is evaluated (during `ValidateTicket`); the `TicketStatus.Expired` enum value itself is never actually assigned anywhere in the code.
