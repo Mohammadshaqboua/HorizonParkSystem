@@ -102,6 +102,11 @@ public class ParkSystemService
             return (false, $"Issue ticket failed: The following Ride IDs do not exist: {string.Join(", ", invalidRideIds)}");
         }
 
+        if (!IsTicketTypeAllowedForCategory(visitor.Category,type))
+        {
+            return (false, "Issue ticket failed: Ticket type does not match visitor category.");
+        }
+
         if (visitor.ActiveTicket != null && visitor.ActiveTicket.Status == TicketStatus.Active)
         {
             return (false, $"Issue ticket failed: Visitor already has an active ticket ({visitor.ActiveTicket.TicketId}).");
@@ -295,10 +300,22 @@ public class ParkSystemService
         {
             return (false, $"Reservation failed: Ride '{ride.Name}' is currently {ride.Status}.");
         }
-
+        
         if (!TimeSpan.TryParse(timeSlot, out _))
         {
             return (false, $"Reservation failed: '{timeSlot}' is not a valid time format (expected HH:mm).");
+        }
+        
+        var ticketCheck = ValidateTicket(visitorId);
+        if (!ticketCheck.Success)
+        {
+            return ticketCheck;
+        }
+        
+        var eligibility = ride.CheckEligibility(visitor, visitor.HasAccompanyingAdult);
+        if (!eligibility.IsEligible)
+        {
+            return (false, $"Reservation failed: {eligibility.Reason}");
         }
 
         bool alreadyReserved = false;
@@ -765,7 +782,26 @@ public class ParkSystemService
         }
         return null;
     }
-
+    
+    private bool IsTicketTypeAllowedForCategory(VisitorCategory category, TicketType type)
+    {
+        switch (category)
+        {
+            case VisitorCategory.Child:
+                return type == TicketType.Child;
+            case VisitorCategory.Senior:
+                return type == TicketType.Senior;
+            case VisitorCategory.VIP:
+                return type == TicketType.VIP;
+            case VisitorCategory.General:
+                return type == TicketType.Regular || type == TicketType.VIP;
+            case VisitorCategory.StaffAccompaniedMinor:
+                return type == TicketType.Child;
+            default:
+                return false;
+        }
+    }
+    
     private decimal GetPriceForTicketType(TicketType type)
     {
         return type switch

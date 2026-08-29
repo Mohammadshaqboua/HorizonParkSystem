@@ -249,7 +249,7 @@ while (true)
                     }
                 }
             }
-
+            
             var result = parkService.IssueTicket(
                 visitorId,
                 type,

@@ -1,6 +1,6 @@
 # HorizonParkSystem — Technical Documentation
 
-**Project type:** C# / .NET 10 Console Application 
+**Project type:** C# / .NET 10 Console Application
 **Author:** Mohammad Shaqboua
 
 A console-based management system for an amusement park ("Horizon Adventure Park"). It handles visitor registration, ticket issuing/validation, ride access control, ride reservations, employee management, shift assignment, and tabular data export — all through a menu-driven CLI backed by an in-memory data layer.
@@ -75,9 +75,9 @@ Pick an option by typing its number and following the prompts. Every operation p
 ### Typical workflow
 1. **Add Ride** (option 8) to create at least one ride — you'll need its generated `RideId` (e.g. `RIDE-1`) later.
 2. **Register Visitor** (option 1) to create a visitor and get a `VisitorId` (e.g. `V-1`).
-3. **Issue Ticket** (option 2) to that visitor, optionally restricting it to specific ride IDs (VIP tickets always grant full access).
+3. **Issue Ticket** (option 2) to that visitor, optionally restricting it to specific ride IDs (VIP tickets always grant full access). The requested ticket type must be compatible with the visitor's registered category (see [`IssueTicket`](#issuetickervisitorid-type-allowedrideids) below).
 4. **Validate Ride Access** (option 5) to check the visitor into a ride — this increments the ride's occupancy.
-5. Optionally **Create Reservation** (option 6) to reserve a ride/time slot ahead of time.
+5. Optionally **Create Reservation** (option 6) to reserve a ride/time slot ahead of time. This requires the visitor to already hold a valid ticket and to meet the ride's eligibility requirements.
 6. **Register Employee** (option 12) and **Assign Employee** (option 10) to staff rides or facilities.
 7. Use **Get Info** (option 13) to inspect a single entity by ID, or **View Ride Occupancy Status** (option 11) for a single ride's live occupancy.
 8. Use **Display All Data** (option 14) to print every record in a chosen entity sector (Visitors, Rides, Employees, Tickets, or Reservations) as a formatted table at once.
@@ -89,9 +89,9 @@ Pick an option by typing its number and following the prompts. Every operation p
 | Area | Implemented Features |
 |---|---|
 | **Visitor Management** | Register visitors with age/height validation (0–120 years, 50–200 cm); auto-generated visitor IDs (`V-#`). |
-| **Ticketing** | Issue tickets of 4 types (Regular, VIP, Child, Senior) with per-type pricing; restrict Regular/Child/Senior tickets to specific ride IDs; VIP tickets auto-grant access to all rides; prevent duplicate active tickets per visitor; deactivate (cancel) tickets; validate ticket status/expiry (1-day validity). |
+| **Ticketing** | Issue tickets of 4 types (Regular, VIP, Child, Senior) with per-type pricing; **enforce ticket-type/visitor-category compatibility** (e.g. a `Child` visitor may only receive a `Child` ticket); restrict Regular/Child/Senior tickets to specific ride IDs; VIP tickets auto-grant access to all rides; prevent duplicate active tickets per visitor; deactivate (cancel) tickets; validate ticket status/expiry (1-day validity). |
 | **Ride Access Control** | Full eligibility pipeline combining ticket validity, ride open/closed/maintenance status, ride-specific ticket permissions, age/height eligibility, an accompanying-adult check for rides that require one, and live capacity checks; increments ride occupancy on successful entry. |
-| **Reservations** | Create time-slot reservations per visitor/ride with duplicate-booking prevention and per-slot capacity enforcement; cancel reservations. |
+| **Reservations** | Create time-slot reservations per visitor/ride, **requiring the visitor to hold a valid ticket and to meet the ride's age/height/accompanying-adult eligibility**, with duplicate-booking prevention and per-slot capacity enforcement; cancel reservations. |
 | **Ride Management** | Add new rides with configurable type, age/height minimums, adult-accompaniment requirement, and capacity; update ride operational status (Open / Closed / Under Maintenance); query live occupancy. |
 | **Employee Management** | Register employees with a role; assign employees to a ride or a known facility for a given shift, with a duplicate-assignment guard. |
 | **Lookup / Reporting** | Unified "Get Info" lookup across Visitors, Rides, Employees, Tickets, and Reservations, returning a formatted detail block for any entity by ID; a "Display All Data" table view that prints every record in a chosen entity sector at once, using each model's `ToString()`. |
@@ -143,7 +143,7 @@ Short reference for every enumeration in the `HorizonParkSystem.Enums` namespace
 | `Shift` | `Morning`, `Afternoon`, `Evening`, `Night` | Work shift used in employee assignments. |
 | `TicketStatus` | `Active`, `Expired`, `Cancelled` | Lifecycle state of an issued ticket. |
 | `TicketType` | `Regular`, `VIP`, `Child`, `Senior` | Determines price and ride-access rules for a ticket. |
-| `VisitorCategory` | `General`, `VIP`, `Child`, `Senior`, `StaffAccompaniedMinor` | Classification of a visitor recorded at registration (informational; not used for pricing/access logic). |
+| `VisitorCategory` | `General`, `VIP`, `Child`, `Senior`, `StaffAccompaniedMinor` | Classification of a visitor recorded at registration. **Now enforced against `TicketType` at issuance** — see `IsTicketTypeAllowedForCategory` in the Services section below. |
 
 ---
 
@@ -159,9 +159,9 @@ All model classes live in the `HorizonParkSystem.Models` namespace. They are mos
 | `Name` | `string` | Visitor's full name. |
 | `Age` | `int` | Visitor's age in years. |
 | `HeightCm` | `int` | Visitor's height in centimeters, used for ride eligibility. |
-| `Category` | `VisitorCategory` | Visitor classification chosen at registration. |
+| `Category` | `VisitorCategory` | Visitor classification chosen at registration. Also constrains which `TicketType` values can later be issued to this visitor. |
 | `ActiveTicket` | `Ticket` | The visitor's currently active ticket, if any. |
-| `HasAccompanyingAdult` | `bool` | Whether the visitor is confirmed to be accompanied by an adult. Captured once at registration (the CLI only asks when `Category == Child`; otherwise it defaults to `false`) and reused for every later `CheckRideAccess` call — it is not re-asked at the ride itself. |
+| `HasAccompanyingAdult` | `bool` | Whether the visitor is confirmed to be accompanied by an adult. Captured once at registration (the CLI only asks when `Category == Child`; otherwise it defaults to `false`) and reused for every later `CheckRideAccess` **and `CreateReservation`** call — it is not re-asked at the ride or at the point of reservation. |
 
 Has a constructor requiring `visitorId, name, age, heightCm, category, hasAccompanyingAdult`.
 
@@ -173,7 +173,7 @@ Has a constructor requiring `visitorId, name, age, heightCm, category, hasAccomp
 | Property | Type | Description |
 |---|---|---|
 | `TicketId` | `string` | Unique ID, auto-generated as `T-{n}`. |
-| `Type` | `TicketType` | Regular / VIP / Child / Senior. |
+| `Type` | `TicketType` | Regular / VIP / Child / Senior. Must be compatible with the visitor's `VisitorCategory` (enforced at issuance). |
 | `Price` | `decimal` | Price charged, derived from `Type`. |
 | `IssueDate` | `DateTime` | Timestamp the ticket was issued. |
 | `ExpiryDate` | `DateTime` | Set to `IssueDate + 1 day`. |
@@ -194,7 +194,7 @@ Has a constructor requiring `visitorId, name, age, heightCm, category, hasAccomp
 | `Type` | `RideType` | Thrill / Family / Water. |
 | `MinAge` | `int` | Minimum rider age. |
 | `MinHeightCm` | `int` | Minimum rider height. |
-| `RequiresAccompanyingAdult` | `bool` | Flag recorded at creation; now enforced by `CheckEligibility` (see below). |
+| `RequiresAccompanyingAdult` | `bool` | Flag recorded at creation; enforced by `CheckEligibility` (see below), including when called from `CreateReservation`. |
 | `MaxCapacity` | `int` | Maximum concurrent riders / reservations per slot. |
 | `CurrentOccupancy` | `int` | Live count of visitors currently on the ride. |
 | `Status` | `RideStatus` | Open / Closed / UnderMaintenance. |
@@ -206,7 +206,7 @@ Has a constructor requiring `visitorId, name, age, heightCm, category, hasAccomp
 **Methods:**
 - `IsOpen()` — `true` if `Status == RideStatus.Open`.
 - `HasAvailableCapacity()` — `true` if `CurrentOccupancy < MaxCapacity`.
-- `CheckEligibility(Visitor visitor, bool hasAccompanyingAdult)` — returns an `EligibilityResult` checking, in order: the visitor's age against `MinAge`, the visitor's height against `MinHeightCm`, and — if `RequiresAccompanyingAdult` is `true` **and** the visitor's age is below `AdultAge` (18) **and** `hasAccompanyingAdult` is `false` — fails with a message stating the ride requires a minor to be accompanied by an adult and none was confirmed. Returns eligible only if all checks pass. `hasAccompanyingAdult` is now a required parameter (no default) — callers must always supply it explicitly.
+- `CheckEligibility(Visitor visitor, bool hasAccompanyingAdult)` — returns an `EligibilityResult` checking, in order: the visitor's age against `MinAge`, the visitor's height against `MinHeightCm`, and — if `RequiresAccompanyingAdult` is `true` **and** the visitor's age is below `AdultAge` (18) **and** `hasAccompanyingAdult` is `false` — fails with a message stating the ride requires a minor to be accompanied by an adult and none was confirmed. Returns eligible only if all checks pass. `hasAccompanyingAdult` is a required parameter (no default) — callers must always supply it explicitly. Called from both `CheckRideAccess` and `CreateReservation`.
 - `ToString()` — returns a formatted row (ID, name, type, status, min age, min height, occupancy/capacity, and the accompanying-adult requirement) for tabular display.
 
 ### `Employee`
@@ -264,8 +264,9 @@ Validates that `age` is between 0–120 and `heightCm` is between 50–200. If v
 ### `IssueTicket(visitorId, type, allowedRideIds)`
 1. Looks up the visitor by ID (fails if not found).
 2. Verifies every ID in `allowedRideIds` corresponds to an existing ride, collecting any invalid ones and failing with a list of them if any are invalid.
-3. Fails if the visitor already holds an active ticket.
-4. Computes the price via `GetPriceForTicketType`, builds a `Ticket` with a 1-day expiry from now, stores it in `_tickets`, and sets it as the visitor's `ActiveTicket`.
+3. Validates that the requested `TicketType` is compatible with the visitor's `VisitorCategory` via `IsTicketTypeAllowedForCategory` (e.g. a `Child` visitor may only be issued a `Child` ticket, a `Senior` visitor only a `Senior` ticket); fails with a message if the two don't match.
+4. Fails if the visitor already holds an active ticket.
+5. Computes the price via `GetPriceForTicketType`, builds a `Ticket` with a 1-day expiry from now, stores it in `_tickets`, and sets it as the visitor's `ActiveTicket`.
 
 ### `GetVisitor(id)`
 A public lookup helper that searches `_visitors` by `VisitorId` and returns the matching `Visitor` object, or `null` if none is found. Unlike the per-entity lookups embedded privately inside other methods, this one is exposed publicly so `Program.cs` can read a visitor's stored fields directly — currently used in the "Validate Ride Access" flow to retrieve the visitor's stored `HasAccompanyingAdult` value before calling `CheckRideAccess`. The CLI null-checks the result before use (see Program Flow below).
@@ -274,7 +275,7 @@ A public lookup helper that searches `_visitors` by `VisitorId` and returns the 
 Looks up the visitor, fails if not found or if they have no ticket or an already-cancelled ticket, otherwise sets the ticket's `Status` to `Cancelled`.
 
 ### `ValidateTicket(visitorId)`
-Looks up the visitor and checks, in order: visitor exists → ticket exists → ticket not cancelled → `ticket.IsValid()` (active status and not expired). Returns the first failure encountered, or a success message if all checks pass. This method is also called internally by `CheckRideAccess`.
+Looks up the visitor and checks, in order: visitor exists → ticket exists → ticket not cancelled → `ticket.IsValid()` (active status and not expired). Returns the first failure encountered, or a success message if all checks pass. This method is also called internally by `CheckRideAccess` **and by `CreateReservation`**.
 
 ### `CheckRideAccess(visitorId, rideId, hasAccompanyingAdult = false)`
 The core access-control pipeline for entering a ride:
@@ -291,9 +292,13 @@ The `hasAccompanyingAdult` value is no longer collected at the point of the ride
 ### `CreateReservation(visitorId, rideId, timeSlot)`
 1. Visitor and ride must exist, and the ride must be `Open`.
 2. `timeSlot` must parse as a `TimeSpan` (e.g. `HH:mm`).
-3. Prevents the same visitor from double-booking the same ride/time slot.
-4. Counts existing active reservations for that ride/time slot and rejects the booking if the count has reached `MaxCapacity`.
-5. Creates and stores a new `Reservation` with `Active` status.
+3. Delegates ticket validity to `ValidateTicket` and short-circuits on failure — a visitor without a currently valid (active, non-expired, non-cancelled) ticket cannot create a reservation.
+4. Runs `ride.CheckEligibility(visitor, visitor.HasAccompanyingAdult)` for age/height requirements and the accompanying-adult check, using the same `HasAccompanyingAdult` value captured at registration that `CheckRideAccess` uses — fails with the returned `Reason` if the visitor is not eligible for the ride.
+5. Prevents the same visitor from double-booking the same ride/time slot.
+6. Counts existing active reservations for that ride/time slot and rejects the booking if the count has reached `MaxCapacity`.
+7. Creates and stores a new `Reservation` with `Active` status.
+
+This aligns `CreateReservation` with the same ticket-validity and eligibility rules already enforced by `CheckRideAccess`, closing a previous gap where a reservation could be made without a valid ticket or without meeting the ride's age/height/accompanying-adult requirements.
 
 ### `CancelReservation(reservationId)`
 Looks up the reservation by ID, fails if not found or already cancelled, otherwise sets its status to `Cancelled`.
@@ -335,6 +340,19 @@ Unlike `GetInfo`, this method doesn't return a string for the CLI to print — i
 ### `GetPriceForTicketType(type)` *(private)*
 A simple switch mapping `TicketType` to price: VIP = 100, Regular = 50, Child = 30, Senior = 35 (defaulting to 50).
 
+### `IsTicketTypeAllowedForCategory(category, type)` *(private)*
+Enforces a fixed compatibility mapping between `VisitorCategory` and `TicketType`, called by `IssueTicket` before a ticket is created:
+
+| `VisitorCategory` | Allowed `TicketType`(s) |
+|---|---|
+| `Child` | `Child` |
+| `Senior` | `Senior` |
+| `VIP` | `VIP` |
+| `General` | `Regular` or `VIP` |
+| `StaffAccompaniedMinor` | `Child` |
+
+Returns `false` (rejecting the ticket) for any category/type combination not listed above.
+
 ### `AddToArray<T>(ref T[] array, T item)` *(private, static, generic)*
 Resizes the array by one slot and appends `item` at the end. Used by every "create" operation instead of a `List<T>`.
 
@@ -351,7 +369,9 @@ Resizes the array by one slot and appends `item` at the end. Used by every "crea
    - Prompts for the required inputs one at a time via `Console.ReadLine()`, validating each (empty-string checks for text, `int.TryParse`/`bool.TryParse` for numbers) and aborting the operation back to the menu on the first invalid input.
    - For inputs that map to an enum (visitor category, ticket type, ride type/status, shift, role, entity sector), shows a small numbered sub-menu and converts the numeric choice to the enum value via a `switch` expression, defaulting to the first enum value on an unrecognized number.
    - **Register Visitor** (option 1) additionally prompts "Is the child accompanied by an adult? (y/n)" whenever the chosen category is `Child`, and passes the resulting `bool` into `RegisterVisitor` as `hasAccompanyingAdult` (defaulting to `false` for every other category).
+   - **Issue Ticket** (option 2) passes the chosen `visitorId`, `type`, and `allowedRideIds` straight through to `IssueTicket` — the category/type compatibility check happens entirely inside the service, so the CLI itself doesn't pre-filter the ticket-type sub-menu based on the visitor's category; an incompatible choice is simply rejected with a `[RESULT]` failure message.
    - **Validate Ride Access** (option 5) calls `parkService.GetVisitor(visitorId)` and reads `HasAccompanyingAdult` off the returned visitor to pass into `CheckRideAccess`, rather than asking staff to confirm it again at the ride. The result is null-checked first — an unrecognized Visitor ID prints a graceful `[ERROR]` and cancels the operation, the same as every other option's ID lookups, instead of throwing.
+   - **Create Reservation** (option 6) passes `visitorId`, `rideId`, and `timeSlot` straight through to `CreateReservation` unchanged — ticket validity and ride eligibility (including the visitor's stored `HasAccompanyingAdult`) are resolved entirely inside the service, so no additional prompts were added to this case.
    - Calls the matching `ParkSystemService` method.
    - Prints the returned `Message` (or the returned string, for options 11 and 13) under a `[RESULT]` header.
    - Waits for `Enter` before looping back to the menu.
@@ -390,6 +410,7 @@ classDiagram
         +GetInfo(entitySector, id) string
         +DisplayAllData(entitySector) void
         -GetPriceForTicketType(type) decimal
+        -IsTicketTypeAllowedForCategory(category, type) bool
         -AddToArray~T~(array, item) void
     }
 
@@ -507,6 +528,7 @@ sequenceDiagram
     Program->>Service: IssueTicket(visitorId, type, allowedRideIds)
     Service->>Store: Find Visitor by ID
     Service->>Store: Validate each allowed Ride ID
+    Service->>Service: IsTicketTypeAllowedForCategory(visitor.Category, type)
     Service->>Service: Check for existing active ticket
     Service->>Service: GetPriceForTicketType(type)
     Service->>Store: Append new Ticket (ID: T-#)
@@ -530,6 +552,18 @@ sequenceDiagram
     Service-->>Program: (Success, Message)
     Program-->>Staff: Print [RESULT]
 
+    Staff->>Program: Select "Create Reservation"
+    Program->>Service: CreateReservation(visitorId, rideId, timeSlot)
+    Service->>Store: Find Visitor & Ride by ID
+    Service->>Service: ride.IsOpen()
+    Service->>Service: Parse timeSlot as TimeSpan
+    Service->>Service: ValidateTicket(visitorId)
+    Service->>Service: ride.CheckEligibility(visitor, visitor.HasAccompanyingAdult) -> EligibilityResult
+    Service->>Service: Check duplicate booking & slot capacity
+    Service->>Store: Append new Reservation (ID: R-#)
+    Service-->>Program: (Success, Message)
+    Program-->>Staff: Print [RESULT]
+
     Staff->>Program: Select "Get Info"
     Program->>Service: GetInfo(entitySector, id)
     Service->>Store: Search matching array by ID
@@ -548,6 +582,7 @@ sequenceDiagram
 3. `ParkSystemService` reads from and writes to its private **in-memory arrays** (`_visitors`, `_rides`, `_tickets`, `_reservations`, `_employees`), which are the only persistent state for the lifetime of the process.
 4. Related entities are cross-referenced by ID string (e.g. a `Ticket.AllowedRideIds` referencing `Ride.RideId`, or a `Reservation.VisitorId` referencing `Visitor.VisitorId`) rather than by object reference — lookups are done via linear search each time.
 5. Results always flow back up as a `(bool Success, string Message)` tuple, a formatted string for `GetInfo`, or (for `DisplayAllData` alone) written straight to the console with no return value, which the CLI prints/relays verbatim without further interpretation.
+6. `IssueTicket` and `CreateReservation` both now enforce cross-entity business rules before mutating state — `IssueTicket` checks the visitor's `Category` against the requested `TicketType`, and `CreateReservation` checks the visitor's ticket validity and ride eligibility — rather than relying solely on checks performed elsewhere (e.g. at `CheckRideAccess` time).
 
 ---
 
@@ -556,6 +591,8 @@ sequenceDiagram
 - **No persistence:** all data is lost when the application exits (no file/database storage).
 - **Linear search everywhere:** entities are stored in plain arrays and located with `foreach` loops rather than dictionaries/indexes, which is fine at small scale but not efficient for large datasets.
 - **`Ride.Reservations` is unused:** the property exists on the model but `CreateReservation` stores reservations only in the service's central `_reservations` array, never populating this array on the `Ride` object.
-- **Accompanying-adult status is captured once at registration, not per ride visit:** `Visitor.HasAccompanyingAdult` is set a single time when the visitor is registered (only asked if `Category == Child`) and is reused for every subsequent `CheckRideAccess` call for that visitor, for the entire lifetime of the process. This means the flag can go stale: a child marked "accompanied" at registration is still treated as accompanied on every later ride check even if they later go off on their own, and there's no way through the current CLI to update it after registration without re-registering the visitor.
+- **Accompanying-adult status is captured once at registration, not per ride visit:** `Visitor.HasAccompanyingAdult` is set a single time when the visitor is registered (only asked if `Category == Child`) and is reused for every subsequent `CheckRideAccess` **and `CreateReservation`** call for that visitor, for the entire lifetime of the process. This means the flag can go stale: a child marked "accompanied" at registration is still treated as accompanied on every later ride check or reservation even if they later go off on their own, and there's no way through the current CLI to update it after registration without re-registering the visitor.
 - **`AssignEmployee` shift-conflict check is shift-only:** it blocks re-assignment whenever the employee's current shift matches the requested shift, even if the new location differs, rather than checking for a true double-booking.
 - **No automatic ticket expiration sweep:** a ticket only becomes practically invalid when `IsValid()` is evaluated (during `ValidateTicket`); the `TicketStatus.Expired` enum value itself is never actually assigned anywhere in the code.
+- **Ticket type not validated against visitor category** *(Fixed)* — `IssueTicket` previously accepted any `TicketType` regardless of the visitor's `VisitorCategory`. Now calls `IsTicketTypeAllowedForCategory` before issuing a ticket.
+- **`CreateReservation` bypassed ticket validity and ride eligibility** *(Fixed)* — a reservation could previously be created for a visitor with no valid ticket, or who did not meet the ride's age/height/accompanying-adult requirements. Now calls `ValidateTicket` and `ride.CheckEligibility` before creating a reservation, mirroring the checks already enforced by `CheckRideAccess`.
